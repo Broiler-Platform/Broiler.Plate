@@ -1,0 +1,86 @@
+<Project>
+
+  <!-- Broiler.UI vendors its own Broiler.Documents so it can build alone. This repo has one
+       too, and building both puts two assemblies named Broiler.Documents.Model in the
+       output - whichever wins, the other half of the build was compiled against the loser.
+       Point Broiler.UI at ours so there is only one. -->
+  <PropertyGroup>
+    <BroilerDocumentsRoot>$(MSBuildThisFileDirectory)Broiler.Documents</BroilerDocumentsRoot>
+    <BroilerGraphicsRoot>$(MSBuildThisFileDirectory)Broiler.Graphics</BroilerGraphicsRoot>
+    <BroilerInputRoot>$(MSBuildThisFileDirectory)Broiler.Input</BroilerInputRoot>
+    <BroilerMediaRoot>$(MSBuildThisFileDirectory)Broiler.Media</BroilerMediaRoot>
+    <BroilerDomRoot>$(MSBuildThisFileDirectory)Broiler.DOM</BroilerDomRoot>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Broiler.Graphics.Direct2D and the Windows head target net10.0-windows. Restoring
+         them from a non-Windows host (a `dotnet restore` that walks the whole graph) needs
+         this, and it is inert on Windows. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <!-- The head declares four configurations: Debug/Release build framework-dependent, and
+         the -Windows variants pin a runtime identifier. MSBuild only understands Debug and
+         Release on its own, so the compound names are decomposed here into a base
+         configuration and a target OS. Without this, `-c Release-Windows` would build
+         unoptimized and with neither RELEASE nor WINDOWS defined.
+
+         Only the Windows pair is listed because Windows is the only head this repo has. A
+         Linux or Android head has to add its own pair here at the same time.
+
+         The component submodules carry the same decomposition in their own
+         Directory.Build.props, which chains to this file in an in-tree build. -->
+    <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Debug-Windows'">Debug</BroilerBaseConfiguration>
+    <BroilerBaseConfiguration Condition="'$(Configuration)' == 'Release-Windows'">Release</BroilerBaseConfiguration>
+    <BroilerTargetOperatingSystem Condition="'$(Configuration)' == 'Debug-Windows' Or '$(Configuration)' == 'Release-Windows'">Windows</BroilerTargetOperatingSystem>
+
+    <DebugSymbols Condition="'$(BroilerBaseConfiguration)' == 'Debug'">true</DebugSymbols>
+    <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Debug'">portable</DebugType>
+    <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Debug'">false</Optimize>
+    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Debug'">$(DefineConstants);DEBUG</DefineConstants>
+    <DebugType Condition="'$(BroilerBaseConfiguration)' == 'Release'">portable</DebugType>
+    <Optimize Condition="'$(BroilerBaseConfiguration)' == 'Release'">true</Optimize>
+    <DefineConstants Condition="'$(BroilerBaseConfiguration)' == 'Release'">$(DefineConstants);RELEASE</DefineConstants>
+
+    <DefineConstants Condition="'$(BroilerTargetOperatingSystem)' == 'Windows'">$(DefineConstants);WINDOWS</DefineConstants>
+
+    <!--
+      ════════════════════════════════════════════════════════════════════
+      Suppressed Build Warnings — Documentation
+      ════════════════════════════════════════════════════════════════════
+
+      Measured against a clean Rebuild of Broiler.Windows.Plate.slnx, so this list suppresses
+      only what this repository actually emits. Nothing here is authored in Broiler.Plate:
+      all 24 warnings come out of one component submodule. Adding a code speculatively costs
+      the signal a warning is supposed to carry — measure first, and re-measure after a
+      submodule bump rather than assuming the code is still needed.
+
+      Note that Broiler.Input and Broiler.Media do not chain to this file (their own
+      Directory.Build.props deliberately does not import a parent), so their policy applies
+      and these suppressions do not reach them.
+
+      ── Nullable Reference Type Warnings ──────────────────────────────
+      CS8602 : Dereference of a possibly null reference          (2)
+      CS8618 : Non-nullable field uninitialized at ctor exit     (8)
+      CS8625 : Cannot convert null literal to non-nullable type  (14)
+
+      Reason  : All 24 are raised in Broiler.DOM's Broiler.Dom.Html, which has not finished
+                adopting nullable annotations. It is a separately released component;
+                suppressing here keeps a composed build readable without editing a submodule
+                from the consumer.
+      Future  : Drops out when that component completes its nullable pass upstream.
+
+      ── Deliberately NOT suppressed ───────────────────────────────────
+      The Writer suppresses CS8601/CS8603/CS8604 for its vendored Android glue and CA1416 for
+      that glue's version-gated calls. This repo has no Android head and a measured rebuild
+      raises neither, so neither is listed.
+
+      The Writer also carries NU1504 unsuppressed, for a duplicate SourceLink PackageReference
+      in Broiler.DOM. At the revision pinned here that reference is gone and a forced restore
+      of this solution is clean, so there is nothing to suppress or to leave visible. If a
+      bump brings it back, leave it visible as the Writer does.
+      ════════════════════════════════════════════════════════════════════
+    -->
+    <NoWarn>$(NoWarn);CS8602;CS8618;CS8625</NoWarn>
+  </PropertyGroup>
+
+</Project>

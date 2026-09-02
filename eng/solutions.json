@@ -1,0 +1,16 @@
+{
+  "solutions": [
+    {
+      "path": "Broiler.Windows.Plate.slnx",
+      "description": "Windows Plate viewer and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*Linux[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    }
+  ]
+}
