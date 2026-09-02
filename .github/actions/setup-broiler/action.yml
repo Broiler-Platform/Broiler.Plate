@@ -1,0 +1,42 @@
+name: Set up Broiler.Plate
+description: >-
+  Installs the .NET SDK for a Broiler.Plate build. Run this after
+  actions/checkout with `submodules: true` — a local action cannot perform the
+  checkout itself, because its own files have to be in the workspace first.
+
+inputs:
+  dotnet-version:
+    description: .NET SDK version to install.
+    required: false
+    default: '10.0.x'
+
+runs:
+  using: composite
+  steps:
+    # There is deliberately no nested-submodule step here, and that is worth
+    # explaining because the Writer's equivalent action has a long one.
+    #
+    # Every component repository carries nested checkouts of its own dependencies
+    # so that it still builds standalone. Historically its projects referenced
+    # those nested copies by literal relative path, so composing components in a
+    # product repo meant initialising the nested checkouts too — and compiling
+    # several components more than once.
+    #
+    # At the revisions pinned here that is no longer true. Broiler.UI,
+    # Broiler.Documents and Broiler.Graphics reach their dependencies through
+    # $(BroilerGraphicsRoot), $(BroilerInputRoot), $(BroilerDocumentsRoot) and
+    # $(BroilerDomRoot), which Directory.Build.props points at this repository's
+    # own top-level checkouts. Measured, not assumed: every one of the 46
+    # ProjectReference resolutions in this solution's closure lands on a
+    # top-level path, and a clean Rebuild emits 46 assemblies, all distinct.
+    #
+    # So `submodules: true` — top-level only, non-recursive — is sufficient, and
+    # the nested checkouts are never built. If a future bump reintroduces a
+    # literal relative path, the symptom is a restore *warning* about a missing
+    # project followed by a build failure on missing types; the fix is to
+    # initialise that specific nested checkout here, and to check whether
+    # scripts/update-solutions.ps1 needs its folding table again.
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}

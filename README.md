@@ -1,5 +1,6 @@
 # Broiler.Plate
 
+[![CI](https://github.com/Broiler-Platform/Broiler.Plate/actions/workflows/ci.yml/badge.svg)](https://github.com/Broiler-Platform/Broiler.Plate/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 Broiler Plate is the viewer of the [Broiler](https://github.com/Broiler-Platform/Broiler)
@@ -99,6 +100,30 @@ pwsh scripts/update-solutions.ps1
 |---|---|
 | `Broiler.Windows.Plate.slnx` | Windows viewer and its transitive dependencies (46 projects) |
 
+## Continuous integration
+
+[`ci.yml`](.github/workflows/ci.yml) runs three jobs on push, pull request and manual
+dispatch:
+
+| Job | Runner | What it protects |
+|---|---|---|
+| Solution manifest | `ubuntu-latest` | The checked-in `.slnx` still matches the real reference graph. Catches a hand-edit, and the subtler case of adding a `ProjectReference` without regenerating — which leaves the new project out of the solution, so it is never built and never seen to break. |
+| Windows head | `windows-latest` | `dotnet build -c Release` of the whole solution. |
+| Publish win-x64 (NativeAOT) | `windows-latest` | `Release-Windows` — a configuration the solution does not declare, so nothing else exercises it — published with NativeAOT, then started to check it stays up. |
+
+The publish job earns its place twice. `Release-Windows` can only be built at project level (a
+solution-level build with an undeclared configuration fails `MSB4126`), so it is the only
+thing standing between a `Directory.Build.props` regression and a release built unoptimized
+with neither `RELEASE` nor `WINDOWS` defined. And NativeAOT is the one build mode that fails
+on reflection every other mode accepts: adding `Activator.CreateInstance` or reflection-based
+serialization to the head or to `Broiler.Plate.Core` breaks it while leaving an ordinary build
+green. `PublishAot` is passed on the command line, never set in a `.csproj`, so day-to-day
+builds stay framework-dependent and fast.
+
+There is no nested-submodule step. `submodules: true` — top-level, non-recursive — is enough,
+for the reason given under [Dependencies](#dependencies); this was rehearsed against a fresh
+clone with the nested checkouts left empty.
+
 ## Repository layout
 
 | Path | Contents |
@@ -107,6 +132,7 @@ pwsh scripts/update-solutions.ps1
 | `src/Broiler.Plate.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard, and the break-out host that gives each dialog its own OS window |
 | `src/Broiler.App` | Source-only directory shared by desktop heads — per-platform clipboards. It has no project of its own; each head links the files it needs. |
 | `eng/`, `scripts/` | Solution manifest and generator |
+| `.github/` | CI workflow and the `setup-broiler` composite action |
 | `Directory.Build.props` | Configuration decomposition and the measured warning suppressions |
 
 ## Build configuration
@@ -137,17 +163,18 @@ Six components are submodules, pinned to `main`:
 
 Each of those repositories carries nested checkouts of the components *it* depends on, so
 that it still builds standalone. `git submodule update --init --recursive` restores the whole
-set.
+set — but at the revisions pinned here, nothing in this repository's project closure reaches
+those nested copies, so a non-recursive `--init` is enough to build.
 
-### Known issues
-
-- **Some components compile more than once.** Each component repository references its own
-  nested checkouts by literal relative path, so composing them here compiles several of them
-  more than once. Every nested gitlink points at the same commit as the top-level one, so the
-  duplicates are assembly-identical and the build reports no reference conflicts — but it is
-  wasted work. The fix is a `$(BroilerGraphicsPath)`-style property hook upstream. The
-  solution generator folds the nested paths onto the top-level ones, so the `.slnx` lists each
-  assembly once.
+That is a change from the Writer, whose README still describes components compiling up to
+five times through nested checkouts. `Broiler.UI`, `Broiler.Documents` and `Broiler.Graphics`
+now reach their dependencies through `$(BroilerGraphicsRoot)`, `$(BroilerInputRoot)`,
+`$(BroilerDocumentsRoot)` and `$(BroilerDomRoot)`, which `Directory.Build.props` points at
+this repository's own top-level checkouts. Measured rather than assumed: every one of the 46
+`ProjectReference` resolutions in this solution's closure lands on a top-level path, and a
+clean `Rebuild` emits 46 assemblies, all distinct. The folding table in
+`scripts/update-solutions.ps1` is therefore inert here; it is kept as insurance in case a
+future bump reintroduces a literal relative path.
 
 ## Roadmap
 
