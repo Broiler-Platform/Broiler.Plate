@@ -7,6 +7,9 @@ using Broiler.Documents.Model;
 using Broiler.Graphics;
 using Broiler.Input.Keyboard;
 using Broiler.UI;
+using Broiler.UI.Button.Standard;
+using Broiler.UI.ComboBox;
+using Broiler.UI.ComboBox.Standard;
 using Broiler.UI.Dialog;
 using Broiler.UI.Dialog.Standard;
 using Broiler.UI.FileDialog;
@@ -19,6 +22,8 @@ using Broiler.UI.Menu;
 using Broiler.UI.Menu.Standard;
 using Broiler.UI.RichEdit.Standard;
 using Broiler.UI.Standard;
+using Broiler.UI.Toolbar;
+using Broiler.UI.Toolbar.Standard;
 using Broiler.UI.Window.Standard;
 
 namespace Broiler.Plate;
@@ -52,6 +57,7 @@ internal sealed class PlateApp : IDisposable
     private readonly UiSession _session;
     private readonly StandardWindow _rootWindow;
     private readonly StandardMenu _menu;
+    private readonly StandardToolbar _toolbar;
     private readonly StandardLabel _title;
     private readonly StandardLabel _status;
     private readonly StandardRichEdit _documentView;
@@ -60,6 +66,29 @@ internal sealed class PlateApp : IDisposable
     private readonly PlateFileFormats _formats;
     private readonly DocumentCodecCatalog _documentCatalog;
     private readonly UiFileDialogFilter[] _openFilters;
+
+    /// <summary>
+    /// The zoom levels the toolbar's picker is currently offering, in its own
+    /// order. The list differs between the two views - only a picture can be
+    /// fitted to the window - so what a chosen index means is read from here
+    /// rather than from the ladder.
+    /// </summary>
+    private readonly List<double?> _zoomChoices = [];
+    private readonly List<(UiMenuItem Item, double? Zoom)> _zoomMenuItems = [];
+    private StandardComboBox? _zoomCombo;
+    private UiMenuItem? _fitMenuItem;
+
+    /// <summary>
+    /// The zoom of each view, kept apart because they are not the same quantity.
+    /// A document is read at a percentage of the size it states; a picture is
+    /// shown at a percentage of its own pixels, or fitted to the window, which is
+    /// no fixed percentage at all. Carrying one number across both would make
+    /// opening a photograph change how the next document is read.
+    /// </summary>
+    private double _documentZoom = PlateZoom.Default;
+    private double? _imageZoom;
+    private bool _isControlHeld;
+    private bool _isSyncingZoomCombo;
 
     private string? _currentPath;
     private string _lastDirectory = Environment.CurrentDirectory;
@@ -119,7 +148,12 @@ internal sealed class PlateApp : IDisposable
         };
         _imageView = new StandardImageView
         {
-            Stretch = UiImageStretch.Uniform,
+            // The box the picture is drawn in is computed by PlateContent, which
+            // is also the box the picture is cropped to fill, so the view scales
+            // what it is given into exactly the box it was given. See
+            // PlateContent.ArrangeImage for why the box is never the larger of
+            // the two.
+            Stretch = UiImageStretch.Fill,
             PreferredSize = new BSize(760, 520),
             PlaceholderBackground = PlatePalette.ImageMat,
             PlaceholderBorder = PlatePalette.ViewBorder,
@@ -127,6 +161,7 @@ internal sealed class PlateApp : IDisposable
         };
 
         _menu = CreateMenu();
+        _toolbar = CreateToolbar();
         _title = new StandardLabel
         {
             Text = "No file open",
@@ -149,10 +184,11 @@ internal sealed class PlateApp : IDisposable
             ActiveBorderColor = PlatePalette.Accent,
             BorderThickness = 1,
         };
-        _content = new PlateContent(_menu, _title, _documentView, _imageView, _status);
+        _content = new PlateContent(_menu, _toolbar, _title, _documentView, _imageView, _status);
         _rootWindow.AddChild(_content);
 
         SeedWelcome();
+        SyncZoomChoices();
         _session.AddRoot(_rootWindow);
         _session.SetFocus(_documentView);
 
@@ -183,11 +219,27 @@ internal sealed class PlateApp : IDisposable
     /// <summary>What is on display, for tests and for the status line.</summary>
     internal PlateViewKind CurrentView => _content.CurrentView;
 
+    /// <summary>The toolbar, so a test can check that nothing on it is drawn past its edge.</summary>
+    internal StandardToolbar Toolbar => _toolbar;
+
+    /// <summary>
+    /// The zoom of the view on display, or null when a picture is being fitted to
+    /// the window. This is what the toolbar's picker and the status line report.
+    /// </summary>
+    internal double? Zoom => _content.CurrentView == PlateViewKind.Image ? _imageZoom : _documentZoom;
+
     public BRenderList RenderFrame() => _session.RenderFrame();
 
     public void Dispatch(UiInputEvent input)
     {
+        TrackModifiers(input);
         if (HandleOpenShortcut(input))
+        {
+            _host.RequestInvalidate();
+            return;
+        }
+
+        if (HandleZoomShortcut(input))
         {
             _host.RequestInvalidate();
             return;
@@ -258,6 +310,10 @@ internal sealed class PlateApp : IDisposable
         dispatcher.Add(new StandardCommand("file.open", ShowOpenDialog));
         dispatcher.Add(new StandardCommand("file.close", CloseFile, () => _currentPath is not null));
         dispatcher.Add(new StandardCommand("file.exit", _requestClose));
+        dispatcher.Add(new StandardCommand("view.zoom.in", () => StepZoom(PlateZoomStep.In)));
+        dispatcher.Add(new StandardCommand("view.zoom.out", () => StepZoom(PlateZoomStep.Out)));
+        dispatcher.Add(new StandardCommand("view.zoom.reset", () => StepZoom(PlateZoomStep.Reset)));
+        AddZoomLevelCommands(dispatcher);
         dispatcher.Add(new StandardCommand("help.notes", ShowNotes, () => _lastReadDiagnostics.Count > 0));
         dispatcher.Add(new StandardCommand("help.about", ShowAbout));
 
@@ -266,6 +322,23 @@ internal sealed class PlateApp : IDisposable
         _closeMenuItem = new UiMenuItem("close", "Close") { CommandName = "file.close", AccessKey = 'C' };
         file.Children.Add(_closeMenuItem);
         file.Children.Add(new UiMenuItem("exit", "Exit") { CommandName = "file.exit", AccessKey = 'X' });
+
+        var view = new UiMenuItem("view", "View") { AccessKey = 'V' };
+        view.Children.Add(new UiMenuItem("zoom-in", "Zoom in") { CommandName = "view.zoom.in", AccessKey = 'I' });
+        view.Children.Add(new UiMenuItem("zoom-out", "Zoom out") { CommandName = "view.zoom.out", AccessKey = 'O' });
+        view.Children.Add(new UiMenuItem("zoom-reset", "Actual size") { CommandName = "view.zoom.reset", AccessKey = 'A' });
+
+        // Only a picture can be fitted: a document's own size is stated in the
+        // document, and a window is not a reason to restate it.
+        _fitMenuItem = new UiMenuItem("zoom-fit", "Fit to window")
+        {
+            CommandName = ZoomCommandName(null),
+            AccessKey = 'F',
+            IsCheckable = true,
+        };
+        _zoomMenuItems.Add((_fitMenuItem, null));
+        view.Children.Add(_fitMenuItem);
+        view.Children.Add(CreateZoomMenu());
 
         var help = new UiMenuItem("help", "Help") { AccessKey = 'H' };
         _notesMenuItem = new UiMenuItem("notes", "Notes for this file...")
@@ -291,8 +364,296 @@ internal sealed class PlateApp : IDisposable
             SelectedBackground = PlatePalette.MenuSelected,
             CommandDispatcher = dispatcher,
         };
-        menu.SetItems([file, help]);
+        menu.SetItems([file, view, help]);
         return menu;
+    }
+
+    /// <summary>
+    /// One command per level on the ladder, named after the percentage it
+    /// selects, and one for fitting a picture to the window. The menu and the
+    /// toolbar both go through these rather than setting the zoom themselves, so
+    /// every way of choosing 150% is the same way.
+    /// </summary>
+    private void AddZoomLevelCommands(StandardCommandDispatcher dispatcher)
+    {
+        dispatcher.Add(new StandardCommand(
+            ZoomCommandName(null),
+            () => ApplyZoom(null),
+            () => _content.CurrentView == PlateViewKind.Image));
+
+        foreach (double level in PlateZoom.Levels)
+        {
+            double zoom = level;
+            dispatcher.Add(new StandardCommand(ZoomCommandName(zoom), () => ApplyZoom(zoom)));
+        }
+    }
+
+    private static string ZoomCommandName(double? zoom) =>
+        zoom is double scale
+            ? "view.zoom." + Math.Round(scale * 100).ToString("0", CultureInfo.InvariantCulture)
+            : "view.zoom.fit";
+
+    /// <summary>
+    /// The ladder as a checkable submenu. It offers the levels and says which one
+    /// the file is being shown at, which is the half of it a menu can do that
+    /// Zoom in and Zoom out cannot. Fit is not among them - it is not a level -
+    /// and while a picture is fitted, none of these is checked, which is true.
+    /// </summary>
+    /// <remarks>
+    /// Nothing here is checked as it is built. Which one is depends on the view
+    /// on display, which does not exist yet while the menu is being composed, and
+    /// <see cref="RefreshUi"/> - which the constructor ends with, and which every
+    /// zoom change goes through - is the one place that answers it.
+    /// </remarks>
+    private UiMenuItem CreateZoomMenu()
+    {
+        var zoom = new UiMenuItem("zoom", "Zoom") { AccessKey = 'Z' };
+        foreach (double level in PlateZoom.Levels)
+        {
+            var item = new UiMenuItem(
+                "zoom-" + Math.Round(level * 100).ToString("0", CultureInfo.InvariantCulture),
+                PlateZoom.Describe(level))
+            {
+                CommandName = ZoomCommandName(level),
+                IsCheckable = true,
+            };
+            _zoomMenuItems.Add((item, level));
+            zoom.Children.Add(item);
+        }
+
+        return zoom;
+    }
+
+    /// <summary>
+    /// The toolbar: the one command a viewer has, and the controls for how big
+    /// what it opened is drawn. Everything else the shell can do is a menu item,
+    /// because a bar of buttons that are mostly unavailable is a bar that has to
+    /// be read before it can be used.
+    /// </summary>
+    /// <remarks>
+    /// The overflow mode is left at its default, so a window too narrow for these
+    /// four moves what does not fit behind the chevron rather than off the edge.
+    /// </remarks>
+    private StandardToolbar CreateToolbar()
+    {
+        var toolbar = new StandardToolbar
+        {
+            Title = "Viewer toolbar",
+            PreferredSize = new BSize(0, 42),
+            Orientation = UiToolbarOrientation.Horizontal,
+            Padding = 5,
+            Spacing = 4,
+            Background = PlatePalette.ToolbarSurface,
+            BorderColor = PlatePalette.MenuRule,
+            SeparatorColor = PlatePalette.MenuRule,
+            CornerRadius = 0,
+            Foreground = PlatePalette.Title,
+            PopupBackground = PlatePalette.MenuPopup,
+            Font = new BFontStyle("Segoe UI", 15),
+        };
+
+        StandardButton openButton = ToolbarAction("Open", 56, ShowOpenDialog);
+        StandardButton zoomOutButton = ToolbarAction("-", 30, () => StepZoom(PlateZoomStep.Out));
+        StandardButton zoomInButton = ToolbarAction("+", 30, () => StepZoom(PlateZoomStep.In));
+        StandardComboBox zoomCombo = CreateZoomCombo();
+        _zoomCombo = zoomCombo;
+
+        toolbar.AddChild(openButton);
+        toolbar.AddChild(zoomOutButton);
+        toolbar.AddChild(zoomCombo);
+        toolbar.AddChild(zoomInButton);
+        toolbar.SetSeparatorBefore(zoomOutButton, true);
+        return toolbar;
+    }
+
+    private StandardButton ToolbarAction(string text, double width, Action action)
+    {
+        var button = new StandardButton
+        {
+            Text = text,
+            PreferredSize = new BSize(width, 30),
+            Font = new BFontStyle("Segoe UI", 13),
+            PaddingX = 8,
+            PaddingY = 5,
+            Background = PlatePalette.ToolbarButton,
+            Foreground = PlatePalette.Title,
+            BorderColor = PlatePalette.ToolbarButtonBorder,
+            DisabledForeground = PlatePalette.Muted,
+            SecondaryHoverBackground = PlatePalette.ToolbarButtonHover,
+            SecondaryPressedBackground = PlatePalette.ToolbarButtonPressed,
+            FocusRing = PlatePalette.Accent,
+            CornerRadius = 5,
+        };
+        button.Clicked += (_, _) =>
+        {
+            action();
+            RefreshUi();
+        };
+        return button;
+    }
+
+    /// <summary>
+    /// The toolbar's zoom picker. It shows the size the file is being shown at
+    /// and drops down the whole ladder, which is the one control that answers
+    /// "what am I looking at" without opening a menu.
+    /// </summary>
+    private StandardComboBox CreateZoomCombo()
+    {
+        var combo = new StandardComboBox
+        {
+            PreferredSize = new BSize(74, 30),
+            MaxDropDownItems = PlateZoom.Levels.Count + 1,
+            ItemHeight = 26,
+            Font = new BFontStyle("Segoe UI", 13),
+            Background = PlatePalette.ToolbarButton,
+            Foreground = PlatePalette.Title,
+            BorderColor = PlatePalette.ToolbarButtonBorder,
+            PopupBackground = PlatePalette.MenuPopup,
+            SelectedBackground = PlatePalette.MenuSelected,
+            FocusRing = PlatePalette.Accent,
+            CornerRadius = 5,
+        };
+
+        // A selection this application made - refilling the list for the other
+        // view, or driving the picker back from the zoom - is not a choice the
+        // user made, and answering it would report a zoom nobody asked for.
+        combo.SelectionChanged += (_, e) =>
+        {
+            if (_isSyncingZoomCombo || (uint)e.NewIndex >= (uint)_zoomChoices.Count)
+                return;
+
+            double? choice = _zoomChoices[e.NewIndex];
+            if (!PlateZoom.SameChoice(choice, Zoom))
+                ApplyZoom(choice);
+        };
+        return combo;
+    }
+
+    /// <summary>
+    /// Fills the picker with the levels the view on display can be shown at. Only
+    /// a picture is offered Fit, so the list is rebuilt when the view changes
+    /// rather than carrying an entry that would do nothing.
+    /// </summary>
+    private void SyncZoomChoices()
+    {
+        if (_zoomCombo is null)
+            return;
+
+        bool offersFit = _content.CurrentView == PlateViewKind.Image;
+        _zoomChoices.Clear();
+        var items = new List<UiComboBoxItem>(PlateZoom.Levels.Count + 1);
+        if (offersFit)
+        {
+            _zoomChoices.Add(null);
+            items.Add(new UiComboBoxItem(ZoomCommandName(null), PlateZoom.FitName));
+        }
+
+        foreach (double level in PlateZoom.Levels)
+        {
+            _zoomChoices.Add(level);
+            items.Add(new UiComboBoxItem(ZoomCommandName(level), PlateZoom.Describe(level)));
+        }
+
+        _isSyncingZoomCombo = true;
+        try
+        {
+            _zoomCombo.SetItems(items);
+        }
+        finally
+        {
+            _isSyncingZoomCombo = false;
+        }
+    }
+
+    /// <summary>
+    /// Shows the file at <paramref name="zoom"/>, or fits it to the window when
+    /// that is null. The view on display is where the number lives; the menu, the
+    /// picker and the status line are told from here, so none of them can
+    /// disagree with what is on screen.
+    /// </summary>
+    private void ApplyZoom(double? zoom)
+    {
+        double? previous = Zoom;
+        double? resolved;
+        if (_content.CurrentView == PlateViewKind.Image)
+        {
+            resolved = zoom is double scale ? PlateZoom.Normalize(scale) : null;
+            _imageZoom = resolved;
+            _content.ImageZoom = resolved;
+        }
+        else
+        {
+            // A document has no fit: it states its own size, and the ladder is
+            // read against that. Fit can only arrive here from a command that
+            // outlived the view it was meant for, and it reads as actual size.
+            double scale = PlateZoom.Normalize(zoom ?? PlateZoom.Default);
+            resolved = scale;
+            _documentZoom = scale;
+            _documentView.Zoom = scale;
+        }
+
+        // A step that changed nothing - the top of the ladder, or the level
+        // already chosen - says so rather than reporting a zoom that did not
+        // happen.
+        _lastAction = (PlateZoom.SameChoice(resolved, previous) ? "Zoom already " : "Zoom ") +
+            PlateZoom.Describe(resolved);
+        RefreshUi();
+    }
+
+    /// <summary>
+    /// Steps the zoom of the view on display. A picture that is fitted steps from
+    /// the size it is actually being shown at rather than from 100%: one step in
+    /// from a photograph filling the window should be a little larger than the
+    /// window, not four times the size of one.
+    /// </summary>
+    private void StepZoom(PlateZoomStep step)
+    {
+        if (step == PlateZoomStep.Reset)
+        {
+            ApplyZoom(PlateZoom.Default);
+            return;
+        }
+
+        double from = Zoom ?? _content.FitScale;
+        ApplyZoom(PlateZoom.Apply(from, step));
+    }
+
+    /// <summary>
+    /// Remembers whether Ctrl is down. A wheel notch is where that has to be
+    /// known and not every head fills a pointer event's modifiers in, but every
+    /// head delivers the key events that raise and drop the flag.
+    /// </summary>
+    private void TrackModifiers(UiInputEvent input)
+    {
+        if (input.Kind == UiInputEventKind.KeyboardKey)
+            _isControlHeld = (input.KeyModifiers & KeyboardModifierState.Control) != KeyboardModifierState.None;
+    }
+
+    /// <summary>
+    /// The zoom gestures: Ctrl with plus, minus or zero, and Ctrl with the wheel.
+    /// They are answered before the session sees them, or Ctrl and the wheel
+    /// would scroll the document it was asked to resize.
+    /// </summary>
+    private bool HandleZoomShortcut(UiInputEvent input)
+    {
+        PlateZoomStep step = input.Kind switch
+        {
+            UiInputEventKind.KeyboardKey => PlateZoom.StepFor(
+                input.KeyName,
+                input.NativeKeyCode,
+                input.KeyModifiers,
+                input.KeyTransition == KeyboardKeyTransition.Down),
+            UiInputEventKind.PointerWheel => PlateZoom.StepForWheel(
+                _isControlHeld || (input.KeyModifiers & KeyboardModifierState.Control) != KeyboardModifierState.None,
+                input.WheelDeltaNotches),
+            _ => PlateZoomStep.None,
+        };
+
+        if (step == PlateZoomStep.None)
+            return false;
+
+        StepZoom(step);
+        return true;
     }
 
     private void ShowOpenDialog()
@@ -344,7 +705,7 @@ internal sealed class PlateApp : IDisposable
         ReleaseImage();
         _documentView.Document = selection.Result.Document;
         _documentView.Selection = RichTextRange.Caret(_documentView.Document.Start);
-        _content.Show(PlateViewKind.Document);
+        ShowView(PlateViewKind.Document);
         AdoptPath(fullPath);
         _lastAction = DescribeOpen(Path.GetFileName(fullPath), selection.Result);
         _session.SetFocus(_documentView);
@@ -379,7 +740,15 @@ internal sealed class PlateApp : IDisposable
             : handle.PixelSize;
         _imageView.Image = handle;
         _imageView.AltText = Path.GetFileNameWithoutExtension(fullPath);
-        _content.Show(PlateViewKind.Image);
+
+        // Every picture arrives fitted. A document states the size it wants to be
+        // read at and the ladder is read against that, so a zoom carries from one
+        // document to the next; a picture states pixels, and the last picture's
+        // 300% says nothing about whether this one fits on the screen.
+        _imageZoom = null;
+        _content.ImageZoom = null;
+        _content.ImagePixelSize = _imagePixelSize;
+        ShowView(PlateViewKind.Image);
 
         // A document left in the editor behind a picture is a document still held
         // in memory, and its notes would still answer the Help menu.
@@ -403,7 +772,9 @@ internal sealed class PlateApp : IDisposable
         _lastReadFileName = "this file";
         _title.Text = "No file open";
         SeedWelcome();
-        _content.Show(PlateViewKind.Document);
+        _imageZoom = null;
+        _content.ImageZoom = null;
+        ShowView(PlateViewKind.Document);
         _lastAction = "Closed";
         _session.SetFocus(_documentView);
         RefreshUi();
@@ -498,6 +869,18 @@ internal sealed class PlateApp : IDisposable
         _host.ReleaseImage(_imageHandle);
         _imageHandle = BImageHandle.Invalid;
         _imagePixelSize = BSize.Empty;
+        _content.ImagePixelSize = BSize.Empty;
+    }
+
+    /// <summary>
+    /// Switches views and refills the zoom picker, which is not the same list for
+    /// both of them. Every switch goes through here, so the picker cannot be left
+    /// offering Fit to a document.
+    /// </summary>
+    private void ShowView(PlateViewKind view)
+    {
+        _content.Show(view);
+        SyncZoomChoices();
     }
 
     /// <summary>
@@ -615,8 +998,44 @@ internal sealed class PlateApp : IDisposable
         if (_notesMenuItem is not null)
             _notesMenuItem.IsEnabled = _lastReadDiagnostics.Count > 0;
 
+        double? zoom = Zoom;
+        foreach ((UiMenuItem item, double? level) in _zoomMenuItems)
+            item.IsChecked = PlateZoom.SameChoice(level, zoom);
+        if (_fitMenuItem is not null)
+            _fitMenuItem.IsEnabled = _content.CurrentView == PlateViewKind.Image;
+
+        int choice = IndexOfZoomChoice(zoom);
+        if (_zoomCombo is not null && choice >= 0)
+        {
+            _isSyncingZoomCombo = true;
+            try
+            {
+                _zoomCombo.SelectIndex(choice);
+            }
+            finally
+            {
+                _isSyncingZoomCombo = false;
+            }
+        }
+
         _status.Text = BuildStatus();
         _host.RequestInvalidate();
+    }
+
+    /// <summary>
+    /// Where <paramref name="zoom"/> sits in the picker's current list, or -1 for
+    /// a zoom that is not on it - which a picture's fit scale never is, and which
+    /// nothing else reaches.
+    /// </summary>
+    private int IndexOfZoomChoice(double? zoom)
+    {
+        for (int i = 0; i < _zoomChoices.Count; i++)
+        {
+            if (PlateZoom.SameChoice(_zoomChoices[i], zoom))
+                return i;
+        }
+
+        return -1;
     }
 
     /// <summary>
@@ -638,11 +1057,12 @@ internal sealed class PlateApp : IDisposable
     private string DescribeImage()
     {
         if (_imagePixelSize.IsEmpty)
-            return "Graphic";
+            return "Graphic | " + PlateZoom.Describe(_imageZoom);
 
         return "Graphic | " +
             ((int)Math.Round(_imagePixelSize.Width)).ToString(CultureInfo.InvariantCulture) + " x " +
-            ((int)Math.Round(_imagePixelSize.Height)).ToString(CultureInfo.InvariantCulture) + " pixels";
+            ((int)Math.Round(_imagePixelSize.Height)).ToString(CultureInfo.InvariantCulture) + " pixels | " +
+            PlateZoom.Describe(_imageZoom);
     }
 
     private string DescribeDocument()
@@ -653,6 +1073,7 @@ internal sealed class PlateApp : IDisposable
         return "Document | " +
             paragraphs.ToString(CultureInfo.InvariantCulture) + (paragraphs == 1 ? " paragraph" : " paragraphs") + " | " +
             chars.ToString(CultureInfo.InvariantCulture) + (chars == 1 ? " character" : " characters") + " | " +
+            PlateZoom.Describe(_documentZoom) + " | " +
             DescribeNotes();
     }
 
@@ -679,9 +1100,9 @@ internal sealed class PlateApp : IDisposable
     }
 
     /// <summary>
-    /// The window's body: a menu bar across the top, a title, the view, and a
-    /// status line. Only one of the two views is ever visible; the other is
-    /// collapsed, so it costs nothing to measure or arrange.
+    /// The window's body: a menu bar and a toolbar across the top, a title, the
+    /// view, and a status line. Only one of the two views is ever visible; the
+    /// other is collapsed, so it costs nothing to measure or arrange.
     /// </summary>
     private sealed class PlateContent : UiElement
     {
@@ -692,25 +1113,39 @@ internal sealed class PlateApp : IDisposable
         private const double MinHeight = 620;
 
         private readonly StandardMenu _menu;
+        private readonly StandardToolbar _toolbar;
         private readonly StandardLabel _title;
         private readonly StandardRichEdit _documentView;
         private readonly StandardImageView _imageView;
         private readonly StandardLabel _status;
 
+        /// <summary>
+        /// The ground a view is given, which for a picture is not the same as the
+        /// box the picture is drawn in: a zoomed-in picture is larger than this
+        /// and a zoomed-out one smaller, and this is what the mat covers and what
+        /// either is clipped to.
+        /// </summary>
+        private BRect _viewArea;
+        private double? _imageZoom;
+        private BSize _imagePixelSize;
+
         public PlateContent(
             StandardMenu menu,
+            StandardToolbar toolbar,
             StandardLabel title,
             StandardRichEdit documentView,
             StandardImageView imageView,
             StandardLabel status)
         {
             _menu = menu;
+            _toolbar = toolbar;
             _title = title;
             _documentView = documentView;
             _imageView = imageView;
             _status = status;
 
             AddChild(_menu);
+            AddChild(_toolbar);
             AddChild(_title);
             AddChild(_documentView);
             AddChild(_imageView);
@@ -718,6 +1153,45 @@ internal sealed class PlateApp : IDisposable
         }
 
         public PlateViewKind CurrentView { get; private set; } = PlateViewKind.Document;
+
+        /// <summary>
+        /// How large the picture is drawn, as a multiple of its own pixels, or
+        /// null to fit it to the window.
+        /// </summary>
+        public double? ImageZoom
+        {
+            get => _imageZoom;
+            set
+            {
+                if (PlateZoom.SameChoice(_imageZoom, value))
+                    return;
+
+                _imageZoom = value;
+                Invalidate(UiInvalidationKind.Arrange | UiInvalidationKind.Render);
+            }
+        }
+
+        /// <summary>What the picture on display decoded to, which a zoom is a multiple of.</summary>
+        public BSize ImagePixelSize
+        {
+            get => _imagePixelSize;
+            set
+            {
+                if (_imagePixelSize == value)
+                    return;
+
+                _imagePixelSize = value;
+                Invalidate(UiInvalidationKind.Arrange | UiInvalidationKind.Render);
+            }
+        }
+
+        /// <summary>
+        /// The scale a fitted picture was last drawn at, which is what a step in
+        /// or out from Fit steps away from. One until a picture has been arranged,
+        /// so a step taken before the first frame reads as actual size rather than
+        /// as a division by an empty window.
+        /// </summary>
+        public double FitScale { get; private set; } = PlateZoom.Default;
 
         public void Show(PlateViewKind view)
         {
@@ -735,9 +1209,10 @@ internal sealed class PlateApp : IDisposable
             double width = double.IsInfinity(availableSize.Width) ? MinWidth : Math.Max(0, availableSize.Width);
             double height = double.IsInfinity(availableSize.Height) ? MinHeight : Math.Max(0, availableSize.Height);
             double contentWidth = Math.Max(0, width - (Margin * 2));
-            double viewHeight = Math.Max(240, height - 152);
+            double viewHeight = Math.Max(240, height - 194);
 
             _menu.Measure(new BSize(width, _menu.MenuBarHeight));
+            _toolbar.Measure(new BSize(width, _toolbar.PreferredSize.Height));
             _title.Measure(new BSize(contentWidth, double.PositiveInfinity));
             if (CurrentView == PlateViewKind.Document)
                 _documentView.Measure(new BSize(contentWidth, viewHeight));
@@ -750,11 +1225,14 @@ internal sealed class PlateApp : IDisposable
 
         protected override void ArrangeCore(BRect finalRect)
         {
+            double toolbarHeight = _toolbar.PreferredSize.Height;
             _menu.Arrange(new BRect(finalRect.Left, finalRect.Top, finalRect.Width, _menu.MenuBarHeight));
+            _toolbar.Arrange(new BRect(
+                finalRect.Left, finalRect.Top + _menu.MenuBarHeight, finalRect.Width, toolbarHeight));
 
             double margin = finalRect.Width < 600 ? 12 : Margin;
             double x = finalRect.Left + margin;
-            double y = finalRect.Top + _menu.MenuBarHeight + TitleTop;
+            double y = finalRect.Top + _menu.MenuBarHeight + toolbarHeight + TitleTop;
             double width = Math.Max(0, finalRect.Width - (margin * 2));
 
             _title.Arrange(new BRect(x, y, width, _title.DesiredSize.Height));
@@ -762,13 +1240,66 @@ internal sealed class PlateApp : IDisposable
 
             double statusTop = finalRect.Bottom - margin - StatusHeight;
             double viewHeight = Math.Max(0, statusTop - y - 14);
-            var view = new BRect(x, y, width, viewHeight);
+            _viewArea = new BRect(x, y, width, viewHeight);
             if (CurrentView == PlateViewKind.Document)
-                _documentView.Arrange(view);
+                _documentView.Arrange(_viewArea);
             else
-                _imageView.Arrange(view);
+                ArrangeImage();
 
             _status.Arrange(new BRect(x, statusTop, width, StatusHeight));
+        }
+
+        /// <summary>
+        /// Puts the picture in the area, at the size asked for.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A picture larger than the area is cropped rather than oversized: the
+        /// view is asked for the middle of it - the part that would be on screen
+        /// - and given a box that is exactly the area. It is never handed a box
+        /// bigger than the ground it was given, because an element's box is not
+        /// only where it draws. Input is routed by hit-testing those boxes, and a
+        /// picture whose box reached over the toolbar and the menu would take
+        /// every click on them, leaving a zoomed-in window with nothing to press.
+        /// </para>
+        /// <para>
+        /// Fit falls out of the same arithmetic rather than being a case of its
+        /// own: at the scale that fits, the whole picture is what fits, so the
+        /// crop is the whole picture and the box is the letterboxed middle of the
+        /// area.
+        /// </para>
+        /// </remarks>
+        private void ArrangeImage()
+        {
+            if (_imagePixelSize.IsEmpty || _viewArea.IsEmpty)
+            {
+                // Nothing to measure against - no picture, or no room for one.
+                FitScale = PlateZoom.Default;
+                _imageView.SourceRect = null;
+                _imageView.Arrange(_viewArea);
+                return;
+            }
+
+            FitScale = Math.Min(
+                _viewArea.Width / _imagePixelSize.Width,
+                _viewArea.Height / _imagePixelSize.Height);
+
+            double scale = _imageZoom ?? FitScale;
+            double sourceWidth = Math.Min(_imagePixelSize.Width, _viewArea.Width / scale);
+            double sourceHeight = Math.Min(_imagePixelSize.Height, _viewArea.Height / scale);
+            _imageView.SourceRect = new BRect(
+                (_imagePixelSize.Width - sourceWidth) / 2,
+                (_imagePixelSize.Height - sourceHeight) / 2,
+                sourceWidth,
+                sourceHeight);
+
+            double drawnWidth = sourceWidth * scale;
+            double drawnHeight = sourceHeight * scale;
+            _imageView.Arrange(new BRect(
+                _viewArea.Left + ((_viewArea.Width - drawnWidth) / 2),
+                _viewArea.Top + ((_viewArea.Height - drawnHeight) / 2),
+                drawnWidth,
+                drawnHeight));
         }
 
         protected override void RenderCore(UiRenderContext context)
@@ -780,14 +1311,36 @@ internal sealed class PlateApp : IDisposable
             context.RenderList.FillRect(
                 new BRect(Bounds.Left, Bounds.Top + _menu.MenuBarHeight, Bounds.Width, 1),
                 PlatePalette.MenuRule);
+            context.RenderList.FillRect(
+                new BRect(
+                    Bounds.Left,
+                    Bounds.Top + _menu.MenuBarHeight + _toolbar.PreferredSize.Height,
+                    Bounds.Width,
+                    1),
+                PlatePalette.MenuRule);
 
-            // The mat behind a picture. A Uniform-stretched image leaves the rest
-            // of its box unpainted, and an image with transparency or a white
-            // border has to be distinguishable from the surface under it.
+            _menu.Render(context);
+            _toolbar.Render(context);
+            _title.Render(context);
             if (CurrentView == PlateViewKind.Image)
-                context.RenderList.FillRect(_imageView.Bounds, PlatePalette.ImageMat);
+                RenderImage(context);
+            else
+                _documentView.Render(context);
+            _status.Render(context);
+        }
 
-            base.RenderCore(context);
+        /// <summary>
+        /// The picture, on its mat. The mat covers the whole area rather than the
+        /// picture's own box, because a picture with transparency or a white
+        /// border has to be distinguishable from the surface under it and a
+        /// zoomed-out one leaves most of the area bare. Nothing is clipped here:
+        /// <see cref="ArrangeImage"/> has already made the box fit the area, and
+        /// a clip would only paper over a box that did not.
+        /// </summary>
+        private void RenderImage(UiRenderContext context)
+        {
+            context.RenderList.FillRect(_viewArea, PlatePalette.ImageMat);
+            _imageView.Render(context);
         }
     }
 }

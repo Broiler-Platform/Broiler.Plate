@@ -21,6 +21,11 @@ internal static class PlatePalette
     public static readonly BColor MenuPopup = BColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
     public static readonly BColor MenuSelected = BColor.FromArgb(0xFF, 0xDF, 0xEC, 0xFA);
     public static readonly BColor MenuRule = BColor.FromArgb(0xFF, 0xD8, 0xE0, 0xE8);
+    public static readonly BColor ToolbarSurface = BColor.FromArgb(0xFF, 0xF0, 0xF4, 0xF8);
+    public static readonly BColor ToolbarButton = BColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
+    public static readonly BColor ToolbarButtonHover = BColor.FromArgb(0xFF, 0xF2, 0xF7, 0xFF);
+    public static readonly BColor ToolbarButtonPressed = BColor.FromArgb(0xFF, 0xD8, 0xE8, 0xFC);
+    public static readonly BColor ToolbarButtonBorder = BColor.FromArgb(0xFF, 0xC4, 0xD2, 0xE0);
 
     /// <summary>
     /// What a picture is matted against. Deliberately darker than

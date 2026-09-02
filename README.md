@@ -16,8 +16,8 @@ Everything below the application — document codecs, DOM, graphics, media, inpu
 toolkit — lives in its own repository and is consumed here as a submodule.
 
 > **First version.** This is `Broiler.Plate` at its very beginning: one Windows head, one
-> file open at a time, opened through the File menu or `Ctrl+O`. Public APIs, repository
-> layout and behaviour are not frozen.
+> file open at a time, opened from the toolbar, the File menu or `Ctrl+O`. Public APIs,
+> repository layout and behaviour are not frozen.
 >
 > The document codecs parse untrusted input — RTF control words, Open XML packages, HTML and
 > PDF object graphs — and must be treated as security-sensitive; no fuzzing campaign,
@@ -73,6 +73,29 @@ PDF is registered by the Windows head rather than by the shared core. A codec mu
 a head by being someone else's transitive reference — see `CreateFileFormats` in
 [`Program.cs`](src/Broiler.Plate.Windows/Program.cs).
 
+## How big it is drawn
+
+A toolbar under the menu carries the one command a viewer has and the controls for how large
+what it opened is drawn: **Open**, then **−**, a picker and **+**. Everything else the shell
+can do stays in the menus, because a bar of buttons that are mostly unavailable is a bar that
+has to be read before it can be used.
+
+The ladder is 25% to 400%, the Writer's, so a percentage means the same thing in both. Every
+way of choosing a level goes through the same command — the picker, *View ▸ Zoom*,
+`Ctrl` with `+`, `-` or `0`, and `Ctrl` with the wheel — so none of them can disagree with
+what is on screen, and the status bar and the picker report the level rather than restating
+the gesture.
+
+Each view has its own zoom, because they are not the same quantity. A document is read at a
+percentage of the size it states, and that carries from one document to the next. A picture is
+drawn at a percentage of its own pixels, or fitted to the window — which is no fixed
+percentage at all, and so is written as *Fit* rather than as a number, offered only where it
+means something, and where every picture starts. Stepping in from *Fit* steps off the size the
+picture is actually being shown at, not off 100%.
+
+A picture larger than the window is centred and clipped to the view; there is nothing to pan
+with yet.
+
 ## Behaviour worth knowing
 
 - **A failed open changes nothing.** If a file is rejected — no codec recognized it, a reader
@@ -84,6 +107,8 @@ a head by being someone else's transitive reference — see `CreateFileFormats` 
   that is actually on display.
 - **Read-only, not inert.** The document view still selects and copies. That is what a viewer
   is for.
+- **Zoom is not part of the file.** It is how something is being looked at, and nothing writes
+  it anywhere. Every picture opens fitted, whatever the one before it was left at.
 
 ## Solutions
 
@@ -98,7 +123,7 @@ pwsh scripts/update-solutions.ps1
 
 | Solution | Contents |
 |---|---|
-| `Broiler.Windows.Plate.slnx` | Windows viewer and its transitive dependencies (46 projects) |
+| `Broiler.Windows.Plate.slnx` | Windows viewer and its transitive dependencies (50 projects) |
 
 ## Continuous integration
 
@@ -128,7 +153,7 @@ clone with the nested checkouts left empty.
 
 | Path | Contents |
 |---|---|
-| `src/Broiler.Plate` | Shared application (`Broiler.Plate.Core`) — window, menu, the two views, format registry, palette |
+| `src/Broiler.Plate` | Shared application (`Broiler.Plate.Core`) — window, menu, toolbar, the two views, the zoom ladder, format registry, palette |
 | `src/Broiler.Plate.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard, and the break-out host that gives each dialog its own OS window |
 | `src/Broiler.App` | Source-only directory shared by desktop heads — per-platform clipboards. It has no project of its own; each head links the files it needs. |
 | `eng/`, `scripts/` | Solution manifest and generator |
@@ -170,9 +195,9 @@ That is a change from the Writer, whose README still describes components compil
 five times through nested checkouts. `Broiler.UI`, `Broiler.Documents` and `Broiler.Graphics`
 now reach their dependencies through `$(BroilerGraphicsRoot)`, `$(BroilerInputRoot)`,
 `$(BroilerDocumentsRoot)` and `$(BroilerDomRoot)`, which `Directory.Build.props` points at
-this repository's own top-level checkouts. Measured rather than assumed: every one of the 46
+this repository's own top-level checkouts. Measured rather than assumed: every one of the 50
 `ProjectReference` resolutions in this solution's closure lands on a top-level path, and a
-clean `Rebuild` emits 46 assemblies, all distinct. The folding table in
+clean `Rebuild` emits 50 assemblies, all distinct. The folding table in
 `scripts/update-solutions.ps1` is therefore inert here; it is kept as insurance in case a
 future bump reintroduces a literal relative path.
 
@@ -180,6 +205,7 @@ future bump reintroduces a literal relative path.
 
 The first version deliberately does one thing. In rough order:
 
+- Panning a picture that is larger than the window
 - Several documents and graphics open at once
 - Audio and video, once the viewer has a surface for them
 - Everything else the Broiler platform learns to read
