@@ -11,6 +11,18 @@
         "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",
         "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
       ]
+    },
+    {
+      "path": "Broiler.Plate.Tests.slnx",
+      "description": "Plate test projects; component unit tests stay in component-owned solutions.",
+      "roots": [
+        "src/tests/Broiler.Plate.Windows.Tests/Broiler.Plate.Windows.Tests.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*Linux[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
     }
   ]
 }

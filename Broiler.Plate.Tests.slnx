@@ -5,7 +5,7 @@
     <BuildType Name="Release" />
   </Configurations>
   <Folder Name="/Entry points/">
-    <Project Path="src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj" />
+    <Project Path="src/tests/Broiler.Plate.Windows.Tests/Broiler.Plate.Windows.Tests.csproj" />
   </Folder>
   <Folder Name="/Dependencies/Broiler.Documents/">
     <Project Path="Broiler.Documents/src/Broiler.Documents.Docx/Broiler.Documents.Docx.csproj" />
@@ -69,6 +69,7 @@
     <Project Path="Broiler.UI/src/Implementations/Standard/ValueAndSelection/Broiler.UI.ListView.Standard/Broiler.UI.ListView.Standard.csproj" />
   </Folder>
   <Folder Name="/Dependencies/src/">
+    <Project Path="src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj" />
     <Project Path="src/Broiler.Plate/Broiler.Plate.Core.csproj" />
   </Folder>
 </Solution>
