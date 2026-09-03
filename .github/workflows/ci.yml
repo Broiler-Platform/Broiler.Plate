@@ -64,6 +64,31 @@ jobs:
       - name: Build
         run: dotnet build Broiler.Windows.Plate.slnx -c Release
 
+  # A separate solution from the head's, and a separate job, because the tests
+  # reference the head and the head is Windows-only — so this cannot join the
+  # ubuntu manifest job, and folding it into the build job would hide which of
+  # the two failed.
+  #
+  # Component unit tests are not run here. Each component repository owns and
+  # runs its own; what this solution covers is the part no component can, which
+  # is what this product composes out of them.
+  test:
+    name: Tests
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Test
+        run: dotnet test Broiler.Plate.Tests.slnx -c Release
+
   # The head declares two configurations the solution does not: Release-Windows
   # and Debug-Windows pin win-x64. Those have to be project-level builds — a
   # solution-level build with an undeclared configuration fails MSB4126 — so the

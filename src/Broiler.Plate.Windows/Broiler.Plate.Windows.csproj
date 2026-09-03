@@ -28,8 +28,18 @@
     <!-- The PDF codec is referenced by the heads that register it, never by the
          shared viewer core: a head must not acquire it transitively (PDF roadmap 10.1). -->
     <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf\Broiler.Documents.Pdf.csproj" />
+    <!-- The image adapters. Referencing them links the decoders; composing one is a
+         separate decision this head makes in Program.cs, and the difference is the
+         point of the extension point. -->
+    <ProjectReference Include="..\..\Broiler.Documents\src\Broiler.Documents.Pdf.Images\Broiler.Documents.Pdf.Images.csproj" />
     <ProjectReference Include="..\..\Broiler.Media\src\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
     <ProjectReference Include="..\..\Broiler.Graphics\src\Broiler.Graphics.Windows\Broiler.Graphics.Direct2D.csproj" />
+  </ItemGroup>
+
+  <!-- So the composition guard asserts this head's own service graph rather than
+       a copy of it kept in the tests. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Broiler.Plate.Windows.Tests" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The first test project in this repository. It targets net10.0-windows and
+    references the head itself, which the Writer's equivalent deliberately does
+    not do: there the composition is hand-copied into the tests, because the
+    Writer has four heads and a shared, test-readable catalog is exactly how PDF
+    would reach the Android and WebAssembly ones without either asking
+    (PDF roadmap 10.1). This viewer has one head, it is Windows-only, and its PDF
+    composition exists nowhere else - so the test can assert the real thing
+    instead of a copy that drifts, and nothing acquires a codec by it.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Broiler.Plate.Windows.Tests</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Broiler.Plate.Windows\Broiler.Plate.Windows.csproj" />
+    <!-- Encoding the JPEG the fixture PDF carries: nothing binary is committed. -->
+    <ProjectReference Include="..\..\..\Broiler.Media\src\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
