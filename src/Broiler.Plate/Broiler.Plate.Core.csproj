@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Broiler.Plate.Windows" />
+    <InternalsVisibleTo Include="Broiler.Plate.Windows.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +23,8 @@
     <PackageReference Include="Broiler.Documents.Rtf" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.3" />
     <PackageReference Include="Broiler.Input.Keyboard" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.UI.AboutDialog" Version="0.1.0-preview.4" />
+    <PackageReference Include="Broiler.UI.AboutDialog.Standard" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.UI.Dialog.Standard" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.UI.FileDialog.Standard" Version="0.1.0-preview.4" />
     <PackageReference Include="Broiler.UI.ImageView.Standard" Version="0.1.0-preview.4" />

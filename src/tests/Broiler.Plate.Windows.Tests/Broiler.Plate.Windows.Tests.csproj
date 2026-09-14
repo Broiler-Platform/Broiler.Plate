@@ -29,7 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Broiler.Plate.Windows\Broiler.Plate.Windows.csproj" />
     <!-- Encoding the JPEG the fixture PDF carries: nothing binary is committed. -->
-    <ProjectReference Include="..\..\..\Broiler.Media\src\Broiler.Media.Image.Managed\Broiler.Media.Image.Managed.csproj" />
+    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.11" />
   </ItemGroup>
 
   <ItemGroup>

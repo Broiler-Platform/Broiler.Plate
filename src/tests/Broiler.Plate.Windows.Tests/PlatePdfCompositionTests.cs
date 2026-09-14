@@ -140,7 +140,7 @@ public sealed class PlatePdfCompositionTests
             }
         }
 
-        byte[] jpeg = new JpegImageCodec().Encode(new ImageBuffer(width, height, rgba), quality: 90);
+        byte[] jpeg = JpegImageCodec.Encode(new ImageBuffer(width, height, rgba), quality: 90);
         string content = string.Create(
             CultureInfo.InvariantCulture,
             $"q {width} 0 0 {height} 40 700 cm /Im0 Do Q");

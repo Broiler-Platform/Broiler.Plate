@@ -208,6 +208,8 @@ internal sealed class PlateApp : IDisposable
 
     public UiSession Session => _session;
 
+    internal StandardMenu Menu => _menu;
+
     /// <summary>The formats this viewer was composed with.</summary>
     internal PlateFileFormats Formats => _formats;
 
@@ -801,8 +803,8 @@ internal sealed class PlateApp : IDisposable
 
     private void ShowAbout()
     {
-        _lastAction = "Broiler Plate: a Broiler.UI window over the platform's document codecs and image decoders";
-        RefreshUi();
+        _session.SetFocus(_content.CurrentView == PlateViewKind.Image ? _imageView : _documentView);
+        PlateAbout.Show(_rootWindow, _host.ViewportSize, typeof(PlateApp).Assembly);
     }
 
     /// <summary>

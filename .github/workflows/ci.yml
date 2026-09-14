@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -18,45 +19,26 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
 
 jobs:
-  # The .slnx is generated from eng/solutions.json. A hand-edit to it is silently
-  # reverted by the next generator run, so the only thing keeping it true is
-  # failing here when the checked-in solution no longer matches the real
-  # reference graph. This also catches the subtler case: adding a
-  # ProjectReference without regenerating leaves the new project out of the
-  # solution, so it is never built and never seen to break.
-  #
-  # No SDK is installed: the generator only parses csproj XML, and pwsh is
-  # already on the runner. It does need the submodules, because the graph it
-  # walks runs through them.
   solutions:
     name: Solution manifest
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     steps:
       - name: Check out
         uses: actions/checkout@v7
-        with:
-          submodules: true
 
-      - name: Verify the generated solution
+      # The generator walks local project references; packages need no checkout.
+      - name: Verify the generated solutions
         shell: pwsh
         run: ./scripts/update-solutions.ps1 -Verify
 
-  # The Windows head targets net10.0-windows and renders through Direct2D, so it
-  # only builds on Windows. It is currently the only head, which is why there is
-  # no build matrix — add one when a second head lands rather than carrying an
-  # empty axis now.
   build:
     name: Windows head
     runs-on: windows-latest
     timeout-minutes: 60
-
     steps:
       - name: Check out
         uses: actions/checkout@v7
-        with:
-          submodules: true
 
       - name: Set up
         uses: ./.github/actions/setup-broiler
@@ -64,24 +46,14 @@ jobs:
       - name: Build
         run: dotnet build Broiler.Windows.Plate.slnx -c Release
 
-  # A separate solution from the head's, and a separate job, because the tests
-  # reference the head and the head is Windows-only — so this cannot join the
-  # ubuntu manifest job, and folding it into the build job would hide which of
-  # the two failed.
-  #
-  # Component unit tests are not run here. Each component repository owns and
-  # runs its own; what this solution covers is the part no component can, which
-  # is what this product composes out of them.
+  # The tests exercise the Windows head's actual PDF composition and shared UI.
   test:
     name: Tests
     runs-on: windows-latest
     timeout-minutes: 60
-
     steps:
       - name: Check out
         uses: actions/checkout@v7
-        with:
-          submodules: true
 
       - name: Set up
         uses: ./.github/actions/setup-broiler
@@ -89,60 +61,35 @@ jobs:
       - name: Test
         run: dotnet test Broiler.Plate.Tests.slnx -c Release
 
-  # The head declares two configurations the solution does not: Release-Windows
-  # and Debug-Windows pin win-x64. Those have to be project-level builds — a
-  # solution-level build with an undeclared configuration fails MSB4126 — so the
-  # only place Release-Windows is exercised is here.
-  #
-  # That is worth a job of its own twice over. Directory.Build.props exists
-  # precisely to decompose those compound configuration names; if it regresses,
-  # an ordinary `-c Release` build stays green while Release-Windows quietly
-  # builds unoptimized with neither RELEASE nor WINDOWS defined.
-  #
-  # And this publishes with NativeAOT, which is the one build mode that fails on
-  # reflection every other mode accepts. Adding reflection,
-  # Activator.CreateInstance, or reflection-based serialization to the head or to
-  # Broiler.Plate.Core breaks the AOT publish while leaving an ordinary build
-  # green — this job is what catches that. Verified locally on 2026-09-02: zero
-  # IL2xxx/IL3xxx warnings and one 9.1 MB native PE32+.
-  #
-  # PublishAot is passed on the command line, never set in the csproj, so
-  # ordinary builds stay framework-dependent and fast.
+  # Release-Windows pins win-x64 and is only declared by the project. Exercise
+  # NativeAOT here as well as in release.yml so failures surface before release.
   publish:
     name: Publish win-x64 (NativeAOT)
     runs-on: windows-latest
     timeout-minutes: 60
-
     steps:
       - name: Check out
         uses: actions/checkout@v7
-        with:
-          submodules: true
 
       - name: Set up
         uses: ./.github/actions/setup-broiler
 
-      # ILCompiler shells out to a platform linker; windows-latest already
-      # carries the MSVC C++ tools, so there is nothing to install. Locally the
-      # same publish needs "C:\Program Files (x86)\Microsoft Visual Studio\
-      # Installer" on PATH — ILCompiler runs vswhere.exe to find the linker and
-      # folds its "not found" error into the link command, which then fails as a
-      # garbled link.exe invocation rather than as a missing tool.
+      # windows-latest includes the MSVC C++ linker required by NativeAOT.
       - name: Publish
-        run: dotnet publish src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj -c Release-Windows -p:PublishAot=true
+        run: dotnet publish src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj -c Release-Windows -p:PublishAot=true -o ./artifacts/win-x64
 
-      # A published viewer that cannot start is not a published viewer. This only
-      # proves the process comes up and stays up — it opens no window worth
-      # asserting on in a headless runner — but it catches a missing runtime pack
-      # or a composition root that throws before the message loop, which is the
-      # class of breakage a build alone never sees.
       - name: Smoke-test the published binary
         shell: pwsh
         run: |
-          $exe = 'src/Broiler.Plate.Windows/bin/Release-Windows/net10.0-windows/win-x64/publish/Broiler.Plate.Windows.exe'
+          $exe = './artifacts/win-x64/Broiler.Plate.Windows.exe'
           if (-not (Test-Path -LiteralPath $exe)) { throw "Published executable not found at $exe." }
-          $p = Start-Process -FilePath $exe -PassThru
-          Start-Sleep -Seconds 10
-          if ($p.HasExited) { throw "The viewer exited with code $($p.ExitCode) instead of staying up." }
-          Stop-Process -Id $p.Id -Force
-          Write-Host 'The published viewer started and stayed up.'
+          $viewer = Start-Process -FilePath $exe -WindowStyle Hidden -PassThru
+          try {
+            Start-Sleep -Seconds 10
+            if ($viewer.HasExited) { throw "The viewer exited with code $($viewer.ExitCode) instead of staying up." }
+            Write-Host 'The published viewer started and stayed up.'
+          }
+          finally {
+            if (-not $viewer.HasExited) { Stop-Process -Id $viewer.Id -Force }
+            $viewer.Dispose()
+          }

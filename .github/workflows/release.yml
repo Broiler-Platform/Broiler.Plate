@@ -1,0 +1,69 @@
+name: Release artifacts
+
+# Manual prerelease artifacts, matching Writer's release workflow. This does not
+# create a GitHub release, publish a package, or sign the output.
+on:
+  workflow_dispatch:
+    inputs:
+      configuration-suffix:
+        description: Build Release-Windows (pins win-x64) instead of plain Release.
+        type: boolean
+        required: false
+        default: true
+      native-aot:
+        description: Publish a self-contained NativeAOT binary. Turn off for a framework-dependent drop.
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  desktop:
+    name: win-x64
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Select the configuration
+        id: configuration
+        run: |
+          $configuration = if ('${{ inputs.configuration-suffix }}' -eq 'true') { 'Release-Windows' } else { 'Release' }
+          "value=$configuration" >> $env:GITHUB_OUTPUT
+
+      # The explicit RID also keeps plain Release on win-x64.
+      - name: Publish
+        run: >-
+          dotnet publish src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj
+          -c '${{ steps.configuration.outputs.value }}'
+          -r win-x64
+          -p:PublishAot=${{ inputs.native-aot }}
+          -o ./artifacts/win-x64
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: broiler-plate-win-x64
+          path: |
+            artifacts/win-x64/**
+            !artifacts/win-x64/**/*.pdb
+            !artifacts/win-x64/**/*.xml
+          if-no-files-found: error
