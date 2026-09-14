@@ -1,3 +1,4 @@
+using Broiler.Graphics.Imaging;
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -16,7 +17,7 @@ internal static class Program
         // Composition root. A viewer without a codec catalog cannot decode the
         // pictures a document embeds, and could not open a graphics file at all -
         // which for this application is half of what it does.
-        Broiler.Graphics.BImageCodecs.Use(
+        BImageCodecs.Use(
             new Broiler.Media.MediaCodecCatalog(Broiler.Media.Image.Managed.ManagedImageCodecs.CreateCodecs()));
 
         try
