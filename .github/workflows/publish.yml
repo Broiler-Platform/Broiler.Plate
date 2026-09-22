@@ -176,11 +176,13 @@ jobs:
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG"
 
+      # By name, into the directory eng/release-draft.sh reads: a pattern matching a single
+      # artifact extracts it straight into `path`, with no per-artifact directory.
       - name: Download the executable
         uses: actions/download-artifact@v8
         with:
-          pattern: broiler-plate-*
-          path: artifacts
+          name: broiler-plate-win-x64-${{ env.VERSION }}
+          path: artifacts/broiler-plate-win-x64-${{ env.VERSION }}
 
       # A draft pre-release: nothing is public until someone reviews and publishes it.
       - name: Draft the release
