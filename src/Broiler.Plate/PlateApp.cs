@@ -710,7 +710,7 @@ internal sealed class PlateApp : IDisposable
 
         ReleaseImage();
         _documentView.Document = selection.Result.Document;
-        _documentView.Selection = RichTextRange.Caret(_documentView.Document.Start);
+        _documentView.Selection = RichTextRange.Caret(RichTextDocument.Start);
         ShowView(PlateViewKind.Document);
         AdoptPath(fullPath);
         _lastAction = DescribeOpen(Path.GetFileName(fullPath), selection.Result);
@@ -820,7 +820,7 @@ internal sealed class PlateApp : IDisposable
             "Choose File > Open, or press Ctrl+O, to open a document or a graphic. " +
             "Documents are drawn through Broiler.Documents and Broiler.UI; graphics are decoded by " +
             "the image codecs this build was composed with.");
-        _documentView.Selection = RichTextRange.Caret(_documentView.Document.Start);
+        _documentView.Selection = RichTextRange.Caret(RichTextDocument.Start);
     }
 
     /// <summary>Ctrl+O, which no view owns, so nothing else will answer it.</summary>
