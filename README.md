@@ -160,13 +160,34 @@ green. `PublishAot` is passed on the command line, never set in a `.csproj`, so 
 builds stay framework-dependent and fast.
 
 The setup action installs .NET 10 and configures GitHub Packages authentication. Both
-workflows grant `packages: read`; no submodule checkout is required.
+workflows grant `packages: read`, and only the publish workflow's release job may write
+(to push its tag and draft the release); no submodule checkout is required.
 
-[`release.yml`](.github/workflows/release.yml) is manually dispatched and uploads a
-`broiler-plate-win-x64` artifact. It defaults to `Release-Windows` with NativeAOT; the
-inputs also allow plain `Release` and a framework-dependent publish that needs .NET 10.
-Symbols and XML documentation are excluded from the artifact. This workflow creates
-downloadable testing artifacts, without creating a GitHub release or signing the output.
+[`publish.yml`](.github/workflows/publish.yml) is dispatch-only and builds the Windows Plate
+with NativeAOT. It comes out as one zip artifact on the run, `broiler-plate-win-x64-<version>`,
+holding a single executable, `Broiler.Plate.Windows.exe`, which is the whole application: no
+.NET runtime to install and nothing beside it. Nothing is pushed to a feed. The run fails if
+the publish ever emits anything beside the executable other than symbols or XML docs, because
+an artifact without that file would be broken, and it starts the executable to check it stays
+up.
+
+Each run also drafts a GitHub pre-release, *Broiler Plate <version>*, with the executable
+zipped as `Broiler.Plate-<version>-win-x64.zip`. It stays a draft until someone publishes it
+under Releases; [`eng/release-draft.sh`](eng/release-draft.sh) builds it and can be run by
+hand from a run's artifacts.
+
+Its inputs are `nuget-source`, the feed the `Broiler.*` dependencies are restored from, and
+an optional `version-suffix` such as `preview.7`. With `broiler-github`, the default, the
+build restores exactly as `NuGet.config` says. With `nuget.org`, the `Broiler.*` mapping is
+dropped for the run and those packages come from nuget.org like everything else, which needs
+the pinned versions to be published there.
+
+Each run takes the next preview version: `BroilerPlateVersion` in `Directory.Build.props` is
+the floor, raised past every earlier run's `plate-v*` tag. A run tags its commit only after
+the build succeeded, so preview numbers only ever increase and a failed run leaves its number
+free. The version is stamped into the build, so the About dialog and the file version match
+the release. The logic is [`eng/resolve-preview-version.mjs`](eng/resolve-preview-version.mjs),
+with tests beside it.
 
 ## Repository layout
 
@@ -175,7 +196,7 @@ downloadable testing artifacts, without creating a GitHub release or signing the
 | `src/Broiler.Plate` | Shared application (`Broiler.Plate.Core`) — window, menu, toolbar, the two views, the zoom ladder, format registry, palette |
 | `src/Broiler.Plate.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard, and the break-out host that gives each dialog its own OS window |
 | `src/Broiler.App` | Source-only directory shared by desktop heads — per-platform clipboards. It has no project of its own; each head links the files it needs. |
-| `eng/`, `scripts/` | Solution manifest and generator |
+| `eng/`, `scripts/` | Solution manifest and generator, preview version resolver, release drafting |
 | `.github/` | CI and release workflows, and the `setup-broiler` composite action |
 | `Directory.Build.props` | Product version and configuration decomposition |
 

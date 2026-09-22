@@ -62,7 +62,7 @@ jobs:
         run: dotnet test Broiler.Plate.Tests.slnx -c Release
 
   # Release-Windows pins win-x64 and is only declared by the project. Exercise
-  # NativeAOT here as well as in release.yml so failures surface before release.
+  # NativeAOT here as well as in publish.yml so failures surface before release.
   publish:
     name: Publish win-x64 (NativeAOT)
     runs-on: windows-latest
