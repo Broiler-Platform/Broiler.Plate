@@ -1,3 +1,20 @@
+// SPDX-FileCopyrightText: 2026 Broiler Platform contributors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Broiler Code Assurance
+// ----------------------
+// Relevant units:   7
+// Annotated:        7/7
+// Exempt:           6
+// Human-reviewed:   0/7
+// IP risk:          Low
+// Security risk:    High
+// Criteria:         7/4
+// Resource impact:  2/10 max
+// Unverified:       7
+//
+// GENERATED - DO NOT EDIT MANUALLY
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -23,6 +40,9 @@ namespace Broiler.Plate;
 /// that cannot open a second OS window keeps the plain host, does not answer the capability, and
 /// its dialogs stay logical subwindows rendered inside the main viewport.
 /// </remarks>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=2; Fingerprint=0F2F4A
+// Broiler-Falsified-If: ClientToScreen writes the owner's client origin into a NativePoint that is not two sequential 32-bit integers
+// Broiler-Human:        PENDING
 [SupportedOSPlatform("windows7.0")]
 internal sealed class PlateWindowsUiHost : PlateUiHost, IUiWindowHost
 {
@@ -31,6 +51,9 @@ internal sealed class PlateWindowsUiHost : PlateUiHost, IUiWindowHost
     private readonly Func<string?>? _getClipboardText;
     private readonly Action<string>? _setClipboardText;
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=216D75
+    // Broiler-Falsified-If: a null getOwnerWindow is accepted and fails only when the first dialog breaks out
+    // Broiler-Human:        PENDING
     public PlateWindowsUiHost(
         Func<BSize> getViewportSize,
         Func<double> getScale,
@@ -48,6 +71,9 @@ internal sealed class PlateWindowsUiHost : PlateUiHost, IUiWindowHost
         _setClipboardText = setClipboardText;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=2; Fingerprint=B83259
+    // Broiler-Falsified-If: a dialog window closed by the user is not removed from _hostWindows, so every Open dialog shown stays alive until the viewer exits
+    // Broiler-Human:        PENDING
     public IUiHostWindow CreateHostWindow(UiHostWindowRequest request)
     {
         BWindow? owner = _getOwnerWindow();
@@ -67,6 +93,9 @@ internal sealed class PlateWindowsUiHost : PlateUiHost, IUiWindowHost
     /// that far into the top-left corner of the screen instead. The client origin is in physical
     /// pixels and the placement is in device-independent ones, so it is scaled on the way through.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=0; Fingerprint=B8790F
+    // Broiler-Falsified-If: an owner client origin of (300, 200) physical pixels at Scale 1.5 moves the placement by anything other than (200, 133.3) device-independent pixels
+    // Broiler-Human:        PENDING
     private UiHostWindowRequest ToScreenPlacement(BWindow? owner, UiHostWindowRequest request)
     {
         if (request.Placement.IsEmpty)
@@ -92,6 +121,9 @@ internal sealed class PlateWindowsUiHost : PlateUiHost, IUiWindowHost
         };
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=9C0F9A
+    // Broiler-Falsified-If: disposing a host window raises Closed, which removes it from _hostWindows while the sweep is enumerating that list
+    // Broiler-Human:        PENDING
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -107,6 +139,9 @@ internal sealed class PlateWindowsUiHost : PlateUiHost, IUiWindowHost
         base.Dispose(disposing);
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=57F17C
+    // Broiler-Falsified-If: the struct is not two sequential 32-bit signed fields, so ClientToScreen writes a POINT that does not fit it
+    // Broiler-Human:        PENDING
     [StructLayout(LayoutKind.Sequential)]
     private struct NativePoint
     {
@@ -114,6 +149,9 @@ internal sealed class PlateWindowsUiHost : PlateUiHost, IUiWindowHost
         public int Y;
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=0F77BE
+    // Broiler-Falsified-If: a failed ClientToScreen is marshalled as true because the result is not a 4-byte Win32 BOOL, so an unconverted origin offsets the dialog
+    // Broiler-Human:        PENDING
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ClientToScreen(IntPtr hwnd, ref NativePoint point);

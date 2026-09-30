@@ -1,3 +1,20 @@
+// SPDX-FileCopyrightText: 2026 Broiler Platform contributors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Broiler Code Assurance
+// ----------------------
+// Relevant units:   8
+// Annotated:        8/8
+// Exempt:           0
+// Human-reviewed:   0/8
+// IP risk:          Low
+// Security risk:    High
+// Criteria:         6/6
+// Resource impact:  8/10 max
+// Unverified:       8
+//
+// GENERATED - DO NOT EDIT MANUALLY
+
 using Broiler.Graphics.Imaging;
 using System;
 using System.Runtime.InteropServices;
@@ -6,9 +23,15 @@ using System.Runtime.Versioning;
 namespace Broiler.Plate;
 
 /// <summary>Windows entry point for Broiler Plate.</summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=A32934
+// Broiler-Falsified-If: a file opened in this head reaches a decoder the composition root did not compose, such as a PDF CCITTFaxDecode or JBIG2Decode stream filter
+// Broiler-Human:        PENDING
 [SupportedOSPlatform("windows7.0")]
 internal static class Program
 {
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=492F78
+    // Broiler-Falsified-If: a graphic opened in the window is decoded by a codec outside ManagedImageCodecs.CreateCodecs(), because BImageCodecs.Use ran after PlateWindow was created or not at all
+    // Broiler-Human:        PENDING
     [STAThread]
     private static int Main()
     {
@@ -48,6 +71,9 @@ internal static class Program
     /// its own release gate it has not passed. That distinction does not arise
     /// here: a viewer never writes, so every format it carries is an opening one.
     /// </remarks>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=078051
+    // Broiler-Falsified-If: the PDF format added here is built on a service graph other than CreatePdfServices(), so a PDF opened in this head decodes through filters that method does not compose
+    // Broiler-Human:        PENDING
     private static PlateFileFormats CreateFileFormats() =>
         PlateFileFormats.CreateDefault().With(
             new PlateDocumentFormat(
@@ -79,17 +105,30 @@ internal static class Program
     /// so. Linking is not composing, and this is where the difference is decided.
     /// </para>
     /// </remarks>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=F7BE5F
+    // Broiler-Falsified-If: the returned graph's StreamFilters holds a CCITTFaxDecode, JBIG2Decode or JPXDecode filter, when JpegStreamFilter is the only filter added to PdfCodecServices.Base
+    // Broiler-Human:        PENDING
     internal static Broiler.Documents.Pdf.PdfCodecServices CreatePdfServices() =>
         Broiler.Documents.Pdf.PdfCodecServices.Base.WithStreamFilters(
             new Broiler.Documents.Pdf.Images.JpegStreamFilter());
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=9A757C
+    // Broiler-Human:        PENDING
     private const uint MbOk = 0x00000000;
+    // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=4AE07E
+    // Broiler-Human:        PENDING
     private const uint MbIconError = 0x00000010;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=857A4A
+    // Broiler-Falsified-If: the context argument is marshalled narrower than a pointer, so the -4 PER_MONITOR_AWARE_V2 handle reaches user32 truncated in a 64-bit process
+    // Broiler-Human:        PENDING
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=1; Fingerprint=AE852B
+    // Broiler-Falsified-If: the text or caption reaches user32 as ANSI bytes, because CharSet.Unicode does not bind the MessageBoxW entry point
+    // Broiler-Human:        PENDING
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int MessageBox(IntPtr hwnd, string text, string caption, uint type);
 }

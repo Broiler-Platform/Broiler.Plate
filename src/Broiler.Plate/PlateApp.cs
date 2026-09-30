@@ -1,3 +1,20 @@
+// SPDX-FileCopyrightText: 2026 Broiler Platform contributors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Broiler Code Assurance
+// ----------------------
+// Relevant units:   68
+// Annotated:        68/68
+// Exempt:           51
+// Human-reviewed:   0/68
+// IP risk:          Low
+// Security risk:    High
+// Criteria:         52/9
+// Resource impact:  8/10 max
+// Unverified:       68
+//
+// GENERATED - DO NOT EDIT MANUALLY
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -54,6 +71,9 @@ namespace Broiler.Plate;
 /// Read-only still selects and copies, which is what a viewer is for.
 /// </para>
 /// </remarks>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=A2E9EA
+// Broiler-Falsified-If: a hostile file opened through OpenFile ends the viewer with an exception instead of leaving a refused-open line in the status bar
+// Broiler-Human:        PENDING
 internal sealed class PlateApp : IDisposable
 {
     private readonly PlateUiHost _host;
@@ -110,7 +130,11 @@ internal sealed class PlateApp : IDisposable
     private BImageHandle _imageHandle = BImageHandle.Invalid;
     private BSize _imagePixelSize = BSize.Empty;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=B27EEA
+    // Broiler-Human:        PENDING
     private static readonly BSize FileDialogPreferredSize = new(740, 430);
+    // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=473DBB
+    // Broiler-Human:        PENDING
     private static readonly BSize NotesDialogPreferredSize = new(560, 320);
 
     /// <summary>
@@ -118,6 +142,9 @@ internal sealed class PlateApp : IDisposable
     /// Every signature this recognizes lives in the first twelve bytes; the rest
     /// is slack so the check does not become wrong the moment one is added.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=461D0D
+    // Broiler-Falsified-If: a signature that ContentTypeForSignature recognizes needs more leading bytes than SignatureLength, so a graphic of that format is handed to the document codecs first
+    // Broiler-Human:        PENDING
     private const int SignatureLength = 32;
 
     /// <param name="formats">
@@ -127,6 +154,9 @@ internal sealed class PlateApp : IDisposable
     /// registers PDF) passes its own set, which is what keeps that codec out of
     /// heads that did not ask for it.
     /// </param>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=2; Fingerprint=4B8E45
+    // Broiler-Falsified-If: a PlateApp constructed without formats opens a PDF, although CreateDefault composes only the RTF, DOCX, HTML and Markdown codecs
+    // Broiler-Human:        PENDING
     public PlateApp(PlateUiHost host, Action requestClose, PlateFileFormats? formats = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
@@ -232,10 +262,18 @@ internal sealed class PlateApp : IDisposable
     /// The zoom of the view on display, or null when a picture is being fitted to
     /// the window. This is what the toolbar's picker and the status line report.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=84B6FB
+    // Broiler-Falsified-If: while a picture is on display the property reports the document's zoom, or a number while the picture is fitted to the window
+    // Broiler-Human:        PENDING
     internal double? Zoom => _content.CurrentView == PlateViewKind.Image ? _imageZoom : _documentZoom;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=7; Fingerprint=AFD3F6
+    // Broiler-Human:        PENDING
     public BRenderList RenderFrame() => _session.RenderFrame();
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=8; Fingerprint=B69859
+    // Broiler-Falsified-If: a key press answered as Ctrl+O or as a zoom shortcut is also delivered to the session, so the document view acts on the same key
+    // Broiler-Human:        PENDING
     public void Dispatch(UiInputEvent input)
     {
         TrackModifiers(input);
@@ -255,6 +293,8 @@ internal sealed class PlateApp : IDisposable
             _host.RequestInvalidate();
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=2C3B2F
+    // Broiler-Human:        PENDING
     public void Invalidate() => _host.RequestInvalidate();
 
     /// <summary>
@@ -263,6 +303,9 @@ internal sealed class PlateApp : IDisposable
     /// set, and the file dialog is one caller of it rather than the only way in -
     /// a command line argument and a drop target are the same call.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=C3CEFC
+    // Broiler-Falsified-If: a file whose leading bytes carry a PNG, JPEG, GIF, BMP, TIFF or WebP signature is handed to a document codec before the image decoder sees it
+    // Broiler-Human:        PENDING
     public bool OpenFile(string path)
     {
         try
@@ -304,12 +347,18 @@ internal sealed class PlateApp : IDisposable
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=5602D0
+    // Broiler-Falsified-If: a picture's renderer handle is still held after Dispose returns
+    // Broiler-Human:        PENDING
     public void Dispose()
     {
         ReleaseImage();
         _session.Dispose();
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=2; Fingerprint=CD50D5
+    // Broiler-Falsified-If: the Close command can run while no file is open, or the Notes command while the last read recorded no diagnostics
+    // Broiler-Human:        PENDING
     private StandardMenu CreateMenu()
     {
         var dispatcher = new StandardCommandDispatcher();
@@ -380,6 +429,9 @@ internal sealed class PlateApp : IDisposable
     /// toolbar both go through these rather than setting the zoom themselves, so
     /// every way of choosing 150% is the same way.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=2E61BA
+    // Broiler-Falsified-If: the fit command can run while a document is on display
+    // Broiler-Human:        PENDING
     private void AddZoomLevelCommands(StandardCommandDispatcher dispatcher)
     {
         dispatcher.Add(new StandardCommand(
@@ -394,6 +446,9 @@ internal sealed class PlateApp : IDisposable
         }
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=3334B5
+    // Broiler-Falsified-If: two ladder levels map to the same command name, so choosing one of them runs the other
+    // Broiler-Human:        PENDING
     private static string ZoomCommandName(double? zoom) =>
         zoom is double scale
             ? "view.zoom." + Math.Round(scale * 100).ToString("0", CultureInfo.InvariantCulture)
@@ -411,6 +466,9 @@ internal sealed class PlateApp : IDisposable
     /// <see cref="RefreshUi"/> - which the constructor ends with, and which every
     /// zoom change goes through - is the one place that answers it.
     /// </remarks>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=349A26
+    // Broiler-Falsified-If: a ladder level's menu item names a command other than the one ZoomCommandName gives that level
+    // Broiler-Human:        PENDING
     private UiMenuItem CreateZoomMenu()
     {
         var zoom = new UiMenuItem("zoom", "Zoom") { AccessKey = 'Z' };
@@ -440,6 +498,9 @@ internal sealed class PlateApp : IDisposable
     /// The overflow mode is left at its default, so a window too narrow for these
     /// four moves what does not fit behind the chevron rather than off the edge.
     /// </remarks>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=8D70FD
+    // Broiler-Falsified-If: the picker placed on the toolbar is not the one _zoomCombo holds, so zoom changes never reach it
+    // Broiler-Human:        PENDING
     private StandardToolbar CreateToolbar()
     {
         var toolbar = new StandardToolbar
@@ -472,6 +533,9 @@ internal sealed class PlateApp : IDisposable
         return toolbar;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=A2DD22
+    // Broiler-Falsified-If: a toolbar button's action runs without the status line and zoom picker being refreshed afterwards
+    // Broiler-Human:        PENDING
     private StandardButton ToolbarAction(string text, double width, Action action)
     {
         var button = new StandardButton
@@ -503,6 +567,9 @@ internal sealed class PlateApp : IDisposable
     /// and drops down the whole ladder, which is the one control that answers
     /// "what am I looking at" without opening a menu.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=1; Fingerprint=F9113F
+    // Broiler-Falsified-If: a selection index of -1 or one past the offered list reads _zoomChoices out of range instead of being ignored
+    // Broiler-Human:        PENDING
     private StandardComboBox CreateZoomCombo()
     {
         var combo = new StandardComboBox
@@ -540,6 +607,9 @@ internal sealed class PlateApp : IDisposable
     /// a picture is offered Fit, so the list is rebuilt when the view changes
     /// rather than carrying an entry that would do nothing.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=A0CB76
+    // Broiler-Falsified-If: the picker offers Fit while a document is on display, or refilling it applies a zoom
+    // Broiler-Human:        PENDING
     private void SyncZoomChoices()
     {
         if (_zoomCombo is null)
@@ -577,6 +647,9 @@ internal sealed class PlateApp : IDisposable
     /// picker and the status line are told from here, so none of them can
     /// disagree with what is on screen.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=4; Fingerprint=30CDCB
+    // Broiler-Falsified-If: a non-finite or off-ladder zoom reaches the document view or the picture without being clamped to the ladder
+    // Broiler-Human:        PENDING
     private void ApplyZoom(double? zoom)
     {
         double? previous = Zoom;
@@ -612,6 +685,9 @@ internal sealed class PlateApp : IDisposable
     /// from a photograph filling the window should be a little larger than the
     /// window, not four times the size of one.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=4; Fingerprint=D0CC0C
+    // Broiler-Falsified-If: a step in from a fitted picture starts from 100% instead of the scale the picture is fitted at
+    // Broiler-Human:        PENDING
     private void StepZoom(PlateZoomStep step)
     {
         if (step == PlateZoomStep.Reset)
@@ -629,6 +705,9 @@ internal sealed class PlateApp : IDisposable
     /// known and not every head fills a pointer event's modifiers in, but every
     /// head delivers the key events that raise and drop the flag.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=CB5AE1
+    // Broiler-Falsified-If: after Ctrl is pressed and released in the window, a plain wheel notch still zooms because the release left the flag set
+    // Broiler-Human:        PENDING
     private void TrackModifiers(UiInputEvent input)
     {
         if (input.Kind == UiInputEventKind.KeyboardKey)
@@ -640,6 +719,9 @@ internal sealed class PlateApp : IDisposable
     /// They are answered before the session sees them, or Ctrl and the wheel
     /// would scroll the document it was asked to resize.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=6AC0B5
+    // Broiler-Falsified-If: a wheel notch with Ctrl neither on the event nor tracked from key events changes the zoom
+    // Broiler-Human:        PENDING
     private bool HandleZoomShortcut(UiInputEvent input)
     {
         PlateZoomStep step = input.Kind switch
@@ -662,6 +744,9 @@ internal sealed class PlateApp : IDisposable
         return true;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=4; Fingerprint=AF9E20
+    // Broiler-Falsified-If: a cancelled dialog, or one accepted with an empty or whitespace name, still calls OpenFile
+    // Broiler-Human:        PENDING
     private void ShowOpenDialog()
     {
         var dialog = new StandardFileDialog
@@ -687,6 +772,9 @@ internal sealed class PlateApp : IDisposable
     /// Reads <paramref name="fullPath"/> as a document and shows it, or reports
     /// why it could not and leaves what is on display alone.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=91DBBF
+    // Broiler-Falsified-If: a document the codecs' default read limits refuse is read whole into memory first, because it reaches SelectAndRead other than as the open file stream
+    // Broiler-Human:        PENDING
     private bool OpenDocument(string fullPath)
     {
         // Streamed rather than File.ReadAllBytes: the read's own limits decide how
@@ -725,6 +813,9 @@ internal sealed class PlateApp : IDisposable
     /// upload that fails is reported as the decoder's refusal rather than as a
     /// missing file.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=889289
+    // Broiler-Falsified-If: a file of several hundred megabytes that carries an image signature is read whole into memory by File.ReadAllBytes before any decoder limit applies
+    // Broiler-Human:        PENDING
     private bool OpenImage(string fullPath)
     {
         byte[] bytes = File.ReadAllBytes(fullPath);
@@ -768,6 +859,9 @@ internal sealed class PlateApp : IDisposable
         return true;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=2; Fingerprint=197A75
+    // Broiler-Falsified-If: after Close, Help > Notes still offers the closed file's diagnostics
+    // Broiler-Human:        PENDING
     private void CloseFile()
     {
         ReleaseImage();
@@ -786,6 +880,9 @@ internal sealed class PlateApp : IDisposable
         RefreshUi();
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=38B249
+    // Broiler-Falsified-If: the notes dialog shows one file's diagnostics under another file's name
+    // Broiler-Human:        PENDING
     private void ShowNotes()
     {
         if (_lastReadDiagnostics.Count == 0)
@@ -801,6 +898,9 @@ internal sealed class PlateApp : IDisposable
         RefreshUi();
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=2; Fingerprint=E202DF
+    // Broiler-Falsified-If: the About dialog reports the metadata of the hosting executable instead of the Broiler.Plate.Core assembly
+    // Broiler-Human:        PENDING
     private void ShowAbout()
     {
         _session.SetFocus(_content.CurrentView == PlateViewKind.Image ? _imageView : _documentView);
@@ -812,6 +912,9 @@ internal sealed class PlateApp : IDisposable
     /// into the document view rather than a separate empty-state element so that
     /// there is one fewer thing on screen to lay out and keep in step.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=E10D4C
+    // Broiler-Falsified-If: the caret is left anywhere other than the start of the welcome text
+    // Broiler-Human:        PENDING
     private void SeedWelcome()
     {
         _documentView.SetPlainText(
@@ -824,6 +927,9 @@ internal sealed class PlateApp : IDisposable
     }
 
     /// <summary>Ctrl+O, which no view owns, so nothing else will answer it.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=2CDB6B
+    // Broiler-Falsified-If: AltGr+O, which the Windows head reports as Ctrl+Alt+O and the Polish programmer layout uses to type an accented o, opens the file dialog
+    // Broiler-Human:        PENDING
     private bool HandleOpenShortcut(UiInputEvent input)
     {
         if (input.Kind != UiInputEventKind.KeyboardKey ||
@@ -841,6 +947,9 @@ internal sealed class PlateApp : IDisposable
     }
 
     /// <summary>The Win32 virtual-key code for O, which the browser reports as keyCode too.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=A53D55
+    // Broiler-Falsified-If: VirtualKeyO is not the Win32 virtual-key code 0x4F for O, so Ctrl+O reported only by native code does not open the dialog
+    // Broiler-Human:        PENDING
     private const int VirtualKeyO = 0x4F;
 
     /// <summary>
@@ -851,6 +960,9 @@ internal sealed class PlateApp : IDisposable
     /// rest. This is the same test <c>StandardRichEdit</c> and the Writer's zoom
     /// ladder apply.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=1; Fingerprint=85A462
+    // Broiler-Falsified-If: an event whose native code and name both belong to another key, such as code 0x50 named P, is matched as O
+    // Broiler-Human:        PENDING
     private static bool IsKey(UiInputEvent input, int virtualKey, string name) =>
         input.NativeKeyCode == virtualKey ||
         string.Equals(
@@ -859,6 +971,9 @@ internal sealed class PlateApp : IDisposable
             StringComparison.Ordinal) ||
         string.Equals(input.KeyName, name, StringComparison.OrdinalIgnoreCase);
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=C3570F
+    // Broiler-Falsified-If: opening a file at a drive root clears the remembered directory instead of keeping the previous one
+    // Broiler-Human:        PENDING
     private void AdoptPath(string fullPath)
     {
         _currentPath = fullPath;
@@ -866,6 +981,9 @@ internal sealed class PlateApp : IDisposable
         _title.Text = Path.GetFileName(fullPath);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=6E830D
+    // Broiler-Falsified-If: a picture's handle is released while the image view still references it, or released twice
+    // Broiler-Human:        PENDING
     private void ReleaseImage()
     {
         if (!_imageHandle.IsValid)
@@ -883,6 +1001,9 @@ internal sealed class PlateApp : IDisposable
     /// both of them. Every switch goes through here, so the picker cannot be left
     /// offering Fit to a document.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=9B66D4
+    // Broiler-Falsified-If: after a switch to the document view the zoom picker still offers Fit
+    // Broiler-Human:        PENDING
     private void ShowView(PlateViewKind view)
     {
         _content.Show(view);
@@ -895,6 +1016,9 @@ internal sealed class PlateApp : IDisposable
     /// codec can be blamed for refusing - from a short one that is simply
     /// shorter than the buffer.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=59B600
+    // Broiler-Falsified-If: a file shorter than SignatureLength yields bytes past those read, such as trailing zeros that complete a signature
+    // Broiler-Human:        PENDING
     private static byte[] ReadSignature(string fullPath, out bool isEmpty)
     {
         using FileStream file = File.OpenRead(fullPath);
@@ -917,11 +1041,17 @@ internal sealed class PlateApp : IDisposable
     /// <see cref="DocumentResultStatus.Partial"/>; the status line says so rather
     /// than passing it off as a clean open.
     /// </remarks>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=D03956
+    // Broiler-Falsified-If: a Rejected read, or a Partial read that recovered no text, replaces what is on display
+    // Broiler-Human:        PENDING
     internal static bool MayReplaceView(DocumentReadResult result) =>
         result.IsUsable &&
         (result.Document.PlainText.Length > 0 || result.Status == DocumentResultStatus.Success);
 
     /// <summary>Why a read was refused, for the status bar.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=3; Fingerprint=27F65B
+    // Broiler-Falsified-If: a refused read that carried a warning or error diagnostic is reported without that diagnostic's message
+    // Broiler-Human:        PENDING
     internal static string DescribeRefusedOpen(string fileName, DocumentCodecSelection selection)
     {
         string reason = FirstProblem(selection.Result) ?? (selection.Codec is null
@@ -932,6 +1062,9 @@ internal sealed class PlateApp : IDisposable
             ". What is on display is unchanged.";
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=E58F0A
+    // Broiler-Falsified-If: a Partial read is reported as a plain Opened line with no mention that parts were skipped or approximated
+    // Broiler-Human:        PENDING
     internal static string DescribeOpen(string fileName, DocumentReadResult result)
     {
         string text = "Opened " + fileName;
@@ -955,6 +1088,9 @@ internal sealed class PlateApp : IDisposable
             : text;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=3; Fingerprint=5AC7DD
+    // Broiler-Falsified-If: an Info diagnostic is returned as the problem ahead of a later warning or error
+    // Broiler-Human:        PENDING
     private static string? FirstProblem(DocumentReadResult result)
     {
         foreach (DocumentDiagnostic diagnostic in result.Diagnostics)
@@ -966,13 +1102,23 @@ internal sealed class PlateApp : IDisposable
         return null;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=0; Fingerprint=58C699
+    // Broiler-Falsified-If: an exception a hostile file provokes while opening, such as OverflowException from a header field, is not matched and escapes OpenFile
+    // Broiler-Human:        PENDING
     private static bool IsFileOperationException(Exception ex) =>
         ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException;
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=5DE95E
+    // Broiler-Human:        PENDING
     private BRect GetDialogPlacement() => CenterInViewport(FileDialogPreferredSize, minTop: 42);
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=ACD293
+    // Broiler-Human:        PENDING
     private BRect GetNotesPlacement() => CenterInViewport(NotesDialogPreferredSize, minTop: 72);
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=957C37
+    // Broiler-Falsified-If: a viewport smaller than the preferred size gives the dialog a negative origin or a size larger than the preferred one
+    // Broiler-Human:        PENDING
     private BRect CenterInViewport(BSize preferred, double minTop)
     {
         BSize viewport = _host.ViewportSize;
@@ -985,6 +1131,9 @@ internal sealed class PlateApp : IDisposable
             Math.Min(preferred.Height, Math.Max(180, viewport.Height - (minTop + 22))));
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=698B87
+    // Broiler-Falsified-If: a directory that no longer exists is handed to the file dialog as its starting directory
+    // Broiler-Human:        PENDING
     private string GetDialogDirectory()
     {
         if (!string.IsNullOrWhiteSpace(_currentPath))
@@ -997,6 +1146,9 @@ internal sealed class PlateApp : IDisposable
         return Directory.Exists(_lastDirectory) ? _lastDirectory : Environment.CurrentDirectory;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=4; Fingerprint=F21A7A
+    // Broiler-Falsified-If: selecting the picker entry for the current zoom here is answered by the picker's handler as a user choice and applies a zoom
+    // Broiler-Human:        PENDING
     private void RefreshUi()
     {
         if (_closeMenuItem is not null)
@@ -1033,6 +1185,9 @@ internal sealed class PlateApp : IDisposable
     /// a zoom that is not on it - which a picture's fit scale never is, and which
     /// nothing else reaches.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=EC41F6
+    // Broiler-Falsified-If: a zoom between two ladder levels returns a level's index instead of -1
+    // Broiler-Human:        PENDING
     private int IndexOfZoomChoice(double? zoom)
     {
         for (int i = 0; i < _zoomChoices.Count; i++)
@@ -1048,6 +1203,9 @@ internal sealed class PlateApp : IDisposable
     /// The status line: what is on display, measured in the terms that view is
     /// measured in, then the last thing that happened.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=4; Fingerprint=6469F5
+    // Broiler-Falsified-If: with a picture on display the status line describes the document view instead
+    // Broiler-Human:        PENDING
     private string BuildStatus()
     {
         if (_currentPath is null)
@@ -1060,6 +1218,8 @@ internal sealed class PlateApp : IDisposable
         return what + " | " + _lastAction;
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=BAF9F6
+    // Broiler-Human:        PENDING
     private string DescribeImage()
     {
         if (_imagePixelSize.IsEmpty)
@@ -1071,6 +1231,9 @@ internal sealed class PlateApp : IDisposable
             PlateZoom.Describe(_imageZoom);
     }
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=4; Fingerprint=91CEF2
+    // Broiler-Falsified-If: the character count reported differs from the length of the document view's plain text
+    // Broiler-Human:        PENDING
     private string DescribeDocument()
     {
         int paragraphs = _documentView.Document.ParagraphCount;
@@ -1094,6 +1257,9 @@ internal sealed class PlateApp : IDisposable
     /// them here would attribute one file's problems to another — after a refused
     /// open, the document that survived it would appear to have grown notes.
     /// </remarks>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=5FBB84
+    // Broiler-Falsified-If: after a refused open, the document still on display is reported with the refused file's note count
+    // Broiler-Human:        PENDING
     private string DescribeNotes()
     {
         if (_lastReadDiagnostics.Count == 0)
@@ -1110,12 +1276,25 @@ internal sealed class PlateApp : IDisposable
     /// view, and a status line. Only one of the two views is ever visible; the
     /// other is collapsed, so it costs nothing to measure or arrange.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=7; Fingerprint=56B73D
+    // Broiler-Falsified-If: a zoomed-in picture is arranged with a box larger than the view area, so it covers the toolbar and menu and takes their clicks
+    // Broiler-Human:        PENDING
     private sealed class PlateContent : UiElement
     {
+        // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=805B86
+        // Broiler-Human:        PENDING
         private const double Margin = 24;
+        // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=A72D39
+        // Broiler-Human:        PENDING
         private const double TitleTop = 18;
+        // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=49F65A
+        // Broiler-Human:        PENDING
         private const double StatusHeight = 24;
+        // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=7A09F9
+        // Broiler-Human:        PENDING
         private const double MinWidth = 900;
+        // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=EE9AE6
+        // Broiler-Human:        PENDING
         private const double MinHeight = 620;
 
         private readonly StandardMenu _menu;
@@ -1135,6 +1314,8 @@ internal sealed class PlateApp : IDisposable
         private double? _imageZoom;
         private BSize _imagePixelSize;
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=E291C2
+        // Broiler-Human:        PENDING
         public PlateContent(
             StandardMenu menu,
             StandardToolbar toolbar,
@@ -1164,6 +1345,8 @@ internal sealed class PlateApp : IDisposable
         /// How large the picture is drawn, as a multiple of its own pixels, or
         /// null to fit it to the window.
         /// </summary>
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=7E6129
+        // Broiler-Human:        PENDING
         public double? ImageZoom
         {
             get => _imageZoom;
@@ -1178,6 +1361,8 @@ internal sealed class PlateApp : IDisposable
         }
 
         /// <summary>What the picture on display decoded to, which a zoom is a multiple of.</summary>
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=688AD3
+        // Broiler-Human:        PENDING
         public BSize ImagePixelSize
         {
             get => _imagePixelSize;
@@ -1199,6 +1384,9 @@ internal sealed class PlateApp : IDisposable
         /// </summary>
         public double FitScale { get; private set; } = PlateZoom.Default;
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=78B92C
+        // Broiler-Falsified-If: both views are left visible, or neither, after a switch
+        // Broiler-Human:        PENDING
         public void Show(PlateViewKind view)
         {
             if (CurrentView == view)
@@ -1210,6 +1398,9 @@ internal sealed class PlateApp : IDisposable
             Invalidate(UiInvalidationKind.Measure | UiInvalidationKind.Arrange | UiInvalidationKind.Render);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=7; Fingerprint=579592
+        // Broiler-Falsified-If: an unbounded available size is returned as infinite instead of MinWidth by MinHeight
+        // Broiler-Human:        PENDING
         protected override BSize MeasureCore(BSize availableSize)
         {
             double width = double.IsInfinity(availableSize.Width) ? MinWidth : Math.Max(0, availableSize.Width);
@@ -1229,6 +1420,9 @@ internal sealed class PlateApp : IDisposable
             return new BSize(width, height);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=7; Fingerprint=8FD5F9
+        // Broiler-Falsified-If: a window shorter than the menu, toolbar, title and status line gives the view a negative height
+        // Broiler-Human:        PENDING
         protected override void ArrangeCore(BRect finalRect)
         {
             double toolbarHeight = _toolbar.PreferredSize.Height;
@@ -1275,6 +1469,9 @@ internal sealed class PlateApp : IDisposable
         /// area.
         /// </para>
         /// </remarks>
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=1; Fingerprint=3D3A61
+        // Broiler-Falsified-If: a picture zoomed past the fit scale is given a box wider or taller than the view area
+        // Broiler-Human:        PENDING
         private void ArrangeImage()
         {
             if (_imagePixelSize.IsEmpty || _viewArea.IsEmpty)
@@ -1308,6 +1505,9 @@ internal sealed class PlateApp : IDisposable
                 drawnHeight));
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=7; Fingerprint=1FA218
+        // Broiler-Falsified-If: the collapsed view is rendered alongside the visible one
+        // Broiler-Human:        PENDING
         protected override void RenderCore(UiRenderContext context)
         {
             context.RenderList.FillRect(Bounds, PlatePalette.Canvas);
@@ -1343,6 +1543,9 @@ internal sealed class PlateApp : IDisposable
         /// <see cref="ArrangeImage"/> has already made the box fit the area, and
         /// a clip would only paper over a box that did not.
         /// </summary>
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=1; Fingerprint=A3EC64
+        // Broiler-Falsified-If: the mat is painted over the picture instead of under it
+        // Broiler-Human:        PENDING
         private void RenderImage(UiRenderContext context)
         {
             context.RenderList.FillRect(_viewArea, PlatePalette.ImageMat);
@@ -1352,6 +1555,8 @@ internal sealed class PlateApp : IDisposable
 }
 
 /// <summary>Which of the viewer's two views is on display.</summary>
+// Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=371D33
+// Broiler-Human:        PENDING
 internal enum PlateViewKind
 {
     Document,
