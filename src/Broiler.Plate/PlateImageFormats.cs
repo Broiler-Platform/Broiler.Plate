@@ -1,3 +1,20 @@
+// SPDX-FileCopyrightText: 2026 Broiler Platform contributors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Broiler Code Assurance
+// ----------------------
+// Relevant units:   16
+// Annotated:        16/16
+// Exempt:           0
+// Human-reviewed:   0/16
+// IP risk:          Low
+// Security risk:    High
+// Criteria:         15/12
+// Resource impact:  3/10 max
+// Unverified:       16
+//
+// GENERATED - DO NOT EDIT MANUALLY
+
 using System;
 using System.Buffers.Binary;
 using System.IO;
@@ -25,9 +42,14 @@ namespace Broiler.Plate;
 /// Open dialog.
 /// </para>
 /// </remarks>
+// Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=3F4645
+// Broiler-Falsified-If: a BMP header whose height field is 0x80000000 makes MeasureDisplaySize throw OverflowException instead of returning the default extent
+// Broiler-Human:        PENDING
 internal static class PlateImageFormats
 {
     /// <summary>The size a picture of unknown dimensions is reported at.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=1BAC27
+    // Broiler-Human:        PENDING
     private const double DefaultExtent = 200;
 
     /// <summary>
@@ -35,6 +57,9 @@ internal static class PlateImageFormats
     /// per-format filters list them. Each entry is the extension and the name
     /// the dialog shows.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=1; Fingerprint=3A3FF7
+    // Broiler-Falsified-If: an extension in Formats is absent from AllExtensions, so the Open dialog offers a graphic the open path does not treat as one
+    // Broiler-Human:        PENDING
     public static readonly (string Extension, string DisplayName)[] Formats =
     [
         (".png", "PNG"),
@@ -49,12 +74,18 @@ internal static class PlateImageFormats
     /// Every extension recognized as a graphic, including the spellings
     /// <see cref="Formats"/> folds together (.jpeg onto .jpg, and so on).
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=1; Fingerprint=3C452A
+    // Broiler-Falsified-If: an extension that FilterPattern offers, such as .tiff or .dib, is missing from AllExtensions
+    // Broiler-Human:        PENDING
     private static readonly string[] AllExtensions =
     [
         ".png", ".jpg", ".jpeg", ".jpe", ".gif", ".bmp", ".dib", ".tif", ".tiff", ".webp",
     ];
 
     /// <summary>The dialog patterns for one entry of <see cref="Formats"/>.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=EA4277
+    // Broiler-Falsified-If: the .jpg entry's pattern omits *.jpeg or *.jpe although AllExtensions recognises both
+    // Broiler-Human:        PENDING
     public static string FilterPattern(string extension) => extension switch
     {
         ".jpg" => "*.jpg;*.jpeg;*.jpe",
@@ -64,6 +95,9 @@ internal static class PlateImageFormats
     };
 
     /// <summary>The pattern matching every graphic the viewer offers.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=1; Fingerprint=00D616
+    // Broiler-Falsified-If: the pattern omits an extension listed in AllExtensions
+    // Broiler-Human:        PENDING
     public static string AllFilterPattern =>
         string.Join(";", Array.ConvertAll(AllExtensions, static extension => "*" + extension));
 
@@ -73,6 +107,9 @@ internal static class PlateImageFormats
     /// signature check in <see cref="ContentTypeForSignature"/> is what decides
     /// first, because a name can lie and a magic number rarely does.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=FCED51
+    // Broiler-Falsified-If: a path whose image extension is not its last one, such as report.png.rtf, is reported as an image
+    // Broiler-Human:        PENDING
     public static bool HasImageExtension(string path)
     {
         string extension = Path.GetExtension(path);
@@ -90,6 +127,9 @@ internal static class PlateImageFormats
     /// against the bytes. Returns null when this is not an image format the
     /// document codecs carry.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=B486D0
+    // Broiler-Falsified-If: a file whose bytes carry the PNG signature but whose name ends in .gif is given image/gif instead of image/png
+    // Broiler-Human:        PENDING
     public static string? ContentTypeFor(string path, ReadOnlySpan<byte> data)
     {
         string? signature = ContentTypeForSignature(data);
@@ -116,6 +156,9 @@ internal static class PlateImageFormats
     /// <paramref name="maxWidth"/> so a photo straight from a camera does not
     /// arrive several thousand units wide.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=A76F6A
+    // Broiler-Falsified-If: a header stating a width or height of zero or below is returned as the display size instead of the default extent
+    // Broiler-Human:        PENDING
     public static BSize MeasureDisplaySize(ReadOnlySpan<byte> data, double maxWidth)
     {
         if (!TryReadPixelSize(data, out int width, out int height) || width <= 0 || height <= 0)
@@ -129,6 +172,9 @@ internal static class PlateImageFormats
     }
 
     /// <summary>Reads the pixel dimensions from an encoded image header.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=305C07
+    // Broiler-Falsified-If: an input truncated right after a recognised signature, such as the four bytes GIF8, throws instead of returning false
+    // Broiler-Human:        PENDING
     public static bool TryReadPixelSize(ReadOnlySpan<byte> data, out int width, out int height)
     {
         width = 0;
@@ -150,6 +196,9 @@ internal static class PlateImageFormats
     /// image format. Recognizing a file costs only its header, so the viewer can
     /// decide what it is holding before committing to read the whole of it.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=A9D172
+    // Broiler-Falsified-If: a RIFF file whose bytes 8 to 11 are not WEBP, such as a WAVE file, is identified as image/webp
+    // Broiler-Human:        PENDING
     public static string? ContentTypeForSignature(ReadOnlySpan<byte> data)
     {
         if (StartsWith(data, [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A]))
@@ -169,6 +218,9 @@ internal static class PlateImageFormats
     }
 
     /// <summary>PNG: the IHDR chunk is first and holds width then height, big-endian.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=8C5CD8
+    // Broiler-Falsified-If: a PNG shorter than 24 bytes, or whose bytes 12 to 15 are not IHDR, reports a size instead of returning false
+    // Broiler-Human:        PENDING
     private static bool TryReadPngSize(ReadOnlySpan<byte> data, out int width, out int height)
     {
         width = 0;
@@ -182,6 +234,9 @@ internal static class PlateImageFormats
     }
 
     /// <summary>JPEG: walk the marker segments to the start-of-frame that states the size.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=3; Fingerprint=159C5D
+    // Broiler-Falsified-If: a segment length that carries the offset past the end of the data makes the walk index outside the span instead of returning false
+    // Broiler-Human:        PENDING
     private static bool TryReadJpegSize(ReadOnlySpan<byte> data, out int width, out int height)
     {
         width = 0;
@@ -225,6 +280,9 @@ internal static class PlateImageFormats
     }
 
     /// <summary>GIF: the logical screen descriptor follows the six-byte signature, little-endian.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=C642D2
+    // Broiler-Falsified-If: a GIF shorter than 10 bytes reports a size instead of returning false
+    // Broiler-Human:        PENDING
     private static bool TryReadGifSize(ReadOnlySpan<byte> data, out int width, out int height)
     {
         width = 0;
@@ -238,6 +296,9 @@ internal static class PlateImageFormats
     }
 
     /// <summary>BMP: the DIB header states the size; a negative height means top-down rows.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=1; Fingerprint=0306F2
+    // Broiler-Falsified-If: a BMP whose height field is 0x80000000 (int.MinValue) throws OverflowException from Math.Abs instead of returning false
+    // Broiler-Human:        PENDING
     private static bool TryReadBmpSize(ReadOnlySpan<byte> data, out int width, out int height)
     {
         width = 0;
@@ -250,6 +311,9 @@ internal static class PlateImageFormats
         return true;
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=1; Fingerprint=8BD7BE
+    // Broiler-Falsified-If: data shorter than the prefix is sliced and throws instead of returning false
+    // Broiler-Human:        PENDING
     private static bool StartsWith(ReadOnlySpan<byte> data, ReadOnlySpan<byte> prefix) =>
         data.Length >= prefix.Length && data[..prefix.Length].SequenceEqual(prefix);
 }

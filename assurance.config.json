@@ -1,0 +1,24 @@
+{
+  "$comment": "Per-declaration assurance for Broiler.Plate. Product projects only: the Broiler.Plate.Windows.Tests suite under src/tests and the eng/ and scripts/ tooling are not listed, so they are not covered. src/Broiler.App/WindowsClipboard.cs has no project of its own and is covered through the literal <Compile Include> in the Windows head; it is a vendored first-party copy of the file the Browser, Writer and Code heads also carry. No source here is third-party-derived and nothing is generated, so there are no excludes and no spdxOverrides.",
+  "schema": 1,
+  "component": "Broiler.Plate",
+  "projects": [
+    "src/Broiler.Plate/Broiler.Plate.Core.csproj",
+    "src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj"
+  ],
+  "exclude": [],
+  "exemptionPredicate": "owning-component",
+  "spdx": {
+    "copyright": [ "2026 Broiler Platform contributors" ],
+    "license": "Apache-2.0"
+  },
+  "spdxOverrides": [],
+  "artefacts": {
+    "report": "CODE-ASSURANCE.md",
+    "humanReview": "HUMAN_REVIEW.md",
+    "manifest": "assurance.manifest.json"
+  },
+  "forbidDirectives": false,
+  "forgeryVocabulary": "narrow",
+  "regenerateCommand": "dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance generate --root Broiler.Plate"
+}

@@ -1,3 +1,20 @@
+// SPDX-FileCopyrightText: 2026 Broiler Platform contributors
+// SPDX-License-Identifier: Apache-2.0
+//
+// Broiler Code Assurance
+// ----------------------
+// Relevant units:   11
+// Annotated:        11/11
+// Exempt:           2
+// Human-reviewed:   0/11
+// IP risk:          Low
+// Security risk:    Medium
+// Criteria:         6/0
+// Resource impact:  3/10 max
+// Unverified:       11
+//
+// GENERATED - DO NOT EDIT MANUALLY
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -20,6 +37,9 @@ namespace Broiler.Plate;
 /// whether to trust what they are looking at, and that decision is exactly what
 /// the notes answer.
 /// </summary>
+// Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=3; Fingerprint=B61E02
+// Broiler-Falsified-If: a note's code or message reported for an opened document is missing from the text the Notes dialog shows
+// Broiler-Human:        PENDING
 internal static class PlateNotes
 {
     /// <summary>
@@ -27,6 +47,9 @@ internal static class PlateNotes
     /// and arranges every child across its whole client area, so the content is
     /// one element that lays itself out rather than a subclass.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=3; Fingerprint=9E9C66
+    // Broiler-Falsified-If: the note list in the dialog accepts typing, so a keystroke changes the text of a note the document reported
+    // Broiler-Human:        PENDING
     public static StandardDialog CreateDialog(string fileName, IReadOnlyList<DocumentDiagnostic> diagnostics)
     {
         var dialog = new StandardDialog
@@ -58,6 +81,9 @@ internal static class PlateNotes
     /// because it is the part worth searching for or quoting - the message says
     /// what happened, the code says which rule produced it.
     /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=3; Fingerprint=5782C9
+    // Broiler-Falsified-If: the text for a list of N diagnostics states a count other than N or lists fewer than N code entries
+    // Broiler-Human:        PENDING
     internal static string Describe(IReadOnlyList<DocumentDiagnostic> diagnostics)
     {
         if (diagnostics is null || diagnostics.Count == 0)
@@ -81,18 +107,31 @@ internal static class PlateNotes
         return builder.ToString();
     }
 
+    // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=521C42
+    // Broiler-Human:        PENDING
     private const string NL = "\n";
 
     /// <summary>The dialog's body: the note list above, a Close button below it.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=3; Fingerprint=8DE26B
+    // Broiler-Falsified-If: the Close button is arranged over the note list at some client size
+    // Broiler-Human:        PENDING
     private sealed class NotesContent : UiElement
     {
+        // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=ADC1E4
+        // Broiler-Human:        PENDING
         private const double ButtonHeight = 30;
+        // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=2B7B68
+        // Broiler-Human:        PENDING
         private const double ButtonWidth = 88;
+        // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=B41882
+        // Broiler-Human:        PENDING
         private const double Gap = 10;
 
         private readonly StandardRichEdit _text;
         private readonly StandardButton _close;
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=E83E4B
+        // Broiler-Human:        PENDING
         public NotesContent(StandardRichEdit text, StandardButton close)
         {
             _text = text;
@@ -101,6 +140,9 @@ internal static class PlateNotes
             AddChild(_close);
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=3; Fingerprint=8FF623
+        // Broiler-Falsified-If: an available height below ButtonHeight plus Gap measures the note list with a negative height
+        // Broiler-Human:        PENDING
         protected override BSize MeasureCore(BSize availableSize)
         {
             _text.Measure(new BSize(availableSize.Width, Math.Max(0, availableSize.Height - ButtonHeight - Gap)));
@@ -108,6 +150,9 @@ internal static class PlateNotes
             return availableSize;
         }
 
+        // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=3; Fingerprint=D31548
+        // Broiler-Falsified-If: a final rect narrower than ButtonWidth places the Close button left of the rect's left edge
+        // Broiler-Human:        PENDING
         protected override void ArrangeCore(BRect finalRect)
         {
             double textHeight = Math.Max(0, finalRect.Height - ButtonHeight - Gap);
