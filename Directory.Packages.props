@@ -1,0 +1,35 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <BroilerDocumentsVersion>0.1.0-preview.16</BroilerDocumentsVersion>
+    <BroilerGraphicsVersion>0.1.0-preview.5</BroilerGraphicsVersion>
+    <BroilerInputVersion>0.1.0-preview.5</BroilerInputVersion>
+    <BroilerUiVersion>0.1.0-preview.7</BroilerUiVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Broiler.Documents.Docx" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Html" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Markdown" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Model" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pdf" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pdf.Images" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Rtf" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Graphics" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Graphics.Windows" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Input.Keyboard" Version="$(BroilerInputVersion)" />
+    <PackageVersion Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.13" />
+    <PackageVersion Include="Broiler.UI.AboutDialog" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.AboutDialog.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Dialog.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.FileDialog.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.ImageView.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Label.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Menu.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.RichEdit.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.Window.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageVersion Include="xunit" Version="2.5.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+</Project>
