@@ -22,9 +22,8 @@
     "present, no extras, every fingerprint current."
   ],
   "files": [
-    { "file": "src/Broiler.App/WindowsClipboard.cs", "fingerprint": "350299" },
     { "file": "src/Broiler.Plate.Windows/PlateHostWindow.cs", "fingerprint": "E8C9B3" },
-    { "file": "src/Broiler.Plate.Windows/PlateWindow.cs", "fingerprint": "D66EA9" },
+    { "file": "src/Broiler.Plate.Windows/PlateWindow.cs", "fingerprint": "632744" },
     { "file": "src/Broiler.Plate.Windows/PlateWindowsUiHost.cs", "fingerprint": "7CB98B" },
     { "file": "src/Broiler.Plate.Windows/Program.cs", "fingerprint": "1958F3" },
     { "file": "src/Broiler.Plate/PlateAbout.cs", "fingerprint": "6AB08C" },
@@ -37,21 +36,6 @@
     { "file": "src/Broiler.Plate/PlateZoom.cs", "fingerprint": "C6426B" }
   ],
   "units": [
-    { "name": "Broiler.App.WindowsClipboard", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "F39BF4" },
-    { "name": "Broiler.App.WindowsClipboard.CfUnicodeText", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "82BB56" },
-    { "name": "Broiler.App.WindowsClipboard.CloseClipboard()", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "819D6E" },
-    { "name": "Broiler.App.WindowsClipboard.EmptyClipboard()", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "82E0CE" },
-    { "name": "Broiler.App.WindowsClipboard.GetClipboardData(uint)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "317039" },
-    { "name": "Broiler.App.WindowsClipboard.GlobalAlloc(uint, UIntPtr)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "B864A6" },
-    { "name": "Broiler.App.WindowsClipboard.GlobalFree(IntPtr)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "80E1CC" },
-    { "name": "Broiler.App.WindowsClipboard.GlobalLock(IntPtr)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "D52183" },
-    { "name": "Broiler.App.WindowsClipboard.GlobalUnlock(IntPtr)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "BDEB39" },
-    { "name": "Broiler.App.WindowsClipboard.GmemMoveable", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "6C1EE9" },
-    { "name": "Broiler.App.WindowsClipboard.IsClipboardFormatAvailable(uint)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "AAAC79" },
-    { "name": "Broiler.App.WindowsClipboard.OpenClipboard(IntPtr)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "0B1567" },
-    { "name": "Broiler.App.WindowsClipboard.SetClipboardData(uint, IntPtr)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "BDB3DF" },
-    { "name": "Broiler.App.WindowsClipboard.SetText(string)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "33578F" },
-    { "name": "Broiler.App.WindowsClipboard.TryGetText(out string)", "file": "src/Broiler.App/WindowsClipboard.cs", "exempt": false, "exemption": "None", "fingerprint": "23A8D0" },
     { "name": "Broiler.Plate.PlateHostWindow", "file": "src/Broiler.Plate.Windows/PlateHostWindow.cs", "exempt": false, "exemption": "None", "fingerprint": "9479CF" },
     { "name": "Broiler.Plate.PlateHostWindow.Activate()", "file": "src/Broiler.Plate.Windows/PlateHostWindow.cs", "exempt": false, "exemption": "None", "fingerprint": "99FA51" },
     { "name": "Broiler.Plate.PlateHostWindow.Bind(UiSession)", "file": "src/Broiler.Plate.Windows/PlateHostWindow.cs", "exempt": false, "exemption": "None", "fingerprint": "B9E321" },

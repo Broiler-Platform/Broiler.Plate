@@ -13,15 +13,15 @@ and the figures below are the measurement of how far from that claim the per-uni
 
 | Metric | Value |
 |---|---:|
-| Files scanned | 13 |
+| Files scanned | 12 |
 | Files not covered | 0 |
-| Files carrying an annotation | 13 |
-| Code units | 344 |
-| Relevant | 248 |
+| Files carrying an annotation | 12 |
+| Code units | 329 |
+| Relevant | 233 |
 | Exempt by predicate | 96 |
-| Annotated | 248 of 248 (100%) |
-| Human reviewed | 0 of 248 (0%) |
-| Unverified | 248 |
+| Annotated | 233 of 233 (100%) |
+| Human reviewed | 0 of 233 (0%) |
+| Unverified | 233 |
 
 ## Review states
 
@@ -29,7 +29,7 @@ and the figures below are the measurement of how far from that claim the per-uni
 |---|---:|
 | NEW | 0 |
 | AI_ASSESSED | 0 |
-| HUMAN_PENDING | 248 |
+| HUMAN_PENDING | 233 |
 | HUMAN_APPROVED_PENDING_FINGERPRINT | 0 |
 | VERIFIED | 0 |
 | STALE | 0 |
@@ -39,8 +39,8 @@ and the figures below are the measurement of how far from that claim the per-uni
 
 | Value | Units |
 |---|---:|
-| None | 121 |
-| Low | 127 |
+| None | 109 |
+| Low | 124 |
 | Medium | 0 |
 | High | 0 |
 | Unknown | 0 |
@@ -53,8 +53,8 @@ and the figures below are the measurement of how far from that claim the per-uni
 | None | 37 |
 | Low | 86 |
 | Medium | 57 |
-| High | 58 |
-| Critical | 10 |
+| High | 47 |
+| Critical | 6 |
 | *not annotated* | 0 |
 
 ## Resource impact
@@ -63,25 +63,10 @@ and the figures below are the measurement of how far from that claim the per-uni
 |---|---:|
 | Maximum | 8 / 10 |
 | Average over annotated units | 1.9 / 10 |
-| Units scored | 248 |
+| Units scored | 233 |
 
 ## High-security review areas
 
-- `Broiler.App.WindowsClipboard` in `src/Broiler.App/WindowsClipboard.cs` - Security=Critical, human line PENDING
-- `Broiler.App.WindowsClipboard.CfUnicodeText` in `src/Broiler.App/WindowsClipboard.cs` - Security=Critical, human line PENDING
-- `Broiler.App.WindowsClipboard.GmemMoveable` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.TryGetText(out string)` in `src/Broiler.App/WindowsClipboard.cs` - Security=Critical, human line PENDING
-- `Broiler.App.WindowsClipboard.SetText(string)` in `src/Broiler.App/WindowsClipboard.cs` - Security=Critical, human line PENDING
-- `Broiler.App.WindowsClipboard.OpenClipboard(IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.CloseClipboard()` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.EmptyClipboard()` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.IsClipboardFormatAvailable(uint)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.GetClipboardData(uint)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.SetClipboardData(uint, IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.GlobalAlloc(uint, UIntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.GlobalFree(IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.GlobalLock(IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
-- `Broiler.App.WindowsClipboard.GlobalUnlock(IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateHostWindow` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=Critical, human line PENDING
 - `Broiler.Plate.PlateHostWindow.Activate()` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateHostWindow.TryGetText(out string)` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=Critical, human line PENDING
@@ -140,8 +125,8 @@ and the figures below are the measurement of how far from that claim the per-uni
 
 | Metric | Value |
 |---|---:|
-| Units carrying a criterion | 188 |
-| Units required to carry one | 68 |
+| Units carrying a criterion | 173 |
+| Units required to carry one | 53 |
 | Required and missing | 0 |
 
 A `Broiler-Falsified-If:` line states, at the declaration, the observation that would make
@@ -192,14 +177,14 @@ through a `<Compile Include>` it states, is left out of the record.
 ## Change detection
 
 `assurance.manifest.json` lists **every** code unit in the 2 covered assemblies -
-344 of them, exempt and relevant alike - with the fingerprint of its declaration.
+329 of them, exempt and relevant alike - with the fingerprint of its declaration.
 This manifest is a change-detection record, not a review. A unit listed there is watched, not reviewed:
 the entry records what the declaration's tokens hashed to when the generator last ran, and
 nothing else. What the manifest adds is that a unit the exemption predicate treats as
 trivial is no longer invisible: a semantic change to one moves a value in a generated file
 the check compares byte for byte. `dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance check --root Broiler.Plate` holds the manifest to the tree.
 
-Beside the units it lists **every covered file** - 13 of them - with a
+Beside the units it lists **every covered file** - 12 of them - with a
 fingerprint over the complete token stream of its compilation unit. A unit entry exists only
 for a declaration kind the scanner enumerates, and an enumeration is a whitelist: an
 `[assembly: ...]` attribute is a member of nothing and can be in no unit at all.

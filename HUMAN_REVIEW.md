@@ -5,7 +5,7 @@ GENERATED - DO NOT EDIT MANUALLY. Regenerate with
 `CODE-ASSURANCE.md`, `assurance.manifest.json` and every generated source header from the
 product tree.
 
-> **Status: PENDING.** Human-reviewed: 0 of 248 relevant units. `dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance check --root Broiler.Plate --release`
+> **Status: PENDING.** Human-reviewed: 0 of 233 relevant units. `dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance check --root Broiler.Plate --release`
 > fails while any relevant unit is without a decision bound to its current fingerprint.
 
 ## 1. How To Use This File
@@ -49,13 +49,13 @@ did, which is the narrower and the more useful of the two.
 
 | Metric | Value |
 |---|---:|
-| Files scanned | 13 |
-| Code units | 344 |
-| Relevant | 248 |
+| Files scanned | 12 |
+| Code units | 329 |
+| Relevant | 233 |
 | Exempt | 96 |
-| Assessed | 248 of 248 (100%) |
-| Human reviewed | 0 of 248 (0%) |
-| Unverified | 248 |
+| Assessed | 233 of 233 (100%) |
+| Human reviewed | 0 of 233 (0%) |
+| Unverified | 233 |
 | Aliases naming a decision | 0 |
 
 ## 4. Review States
@@ -67,7 +67,7 @@ annotations and the current fingerprints; nothing stores them.
 |---|---:|
 | NEW | 0 |
 | AI_ASSESSED | 0 |
-| HUMAN_PENDING | 248 |
+| HUMAN_PENDING | 233 |
 | HUMAN_APPROVED_PENDING_FINGERPRINT | 0 |
 | VERIFIED | 0 |
 | STALE | 0 |
@@ -85,7 +85,6 @@ relevant units in a state that blocks a release.
 
 | File | Units | Relevant | Exempt | Unverified | IP risk | Security risk | Criteria |
 |---|---:|---:|---:|---:|---|---|---:|
-| `src/Broiler.App/WindowsClipboard.cs` | 15 | 15 | 0 | 15 | Low | Critical | 15/15 |
 | `src/Broiler.Plate.Windows/PlateHostWindow.cs` | 43 | 34 | 9 | 34 | Low | Critical | 25/6 |
 | `src/Broiler.Plate.Windows/PlateWindow.cs` | 23 | 19 | 4 | 19 | Low | Critical | 17/7 |
 | `src/Broiler.Plate.Windows/PlateWindowsUiHost.cs` | 13 | 7 | 6 | 7 | Low | High | 7/4 |
@@ -114,36 +113,6 @@ The units at the top of the security vocabulary, with the observation that would
 one wrong and the human line it carries. The set is read from the assessments rather than
 written out, so a unit that becomes `High` joins it at the next generation.
 
-- `Broiler.App.WindowsClipboard` in `src/Broiler.App/WindowsClipboard.cs` - Security=Critical, Spec=none cited, `F39BF4`, PENDING
-  - Falsified if: CF_UNICODETEXT data whose global block holds no NUL character is read past GlobalSize(handle) by Marshal.PtrToStringUni
-- `Broiler.App.WindowsClipboard.CfUnicodeText` in `src/Broiler.App/WindowsClipboard.cs` - Security=Critical, Spec=none cited, `82BB56`, PENDING
-  - Falsified if: the value is not Win32 CF_UNICODETEXT (13), so TryGetText reads a block of another clipboard format as NUL-terminated UTF-16
-- `Broiler.App.WindowsClipboard.GmemMoveable` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `6C1EE9`, PENDING
-  - Falsified if: the value is not Win32 GMEM_MOVEABLE (0x0002), so SetClipboardData is handed a block that was not allocated moveable as its contract requires
-- `Broiler.App.WindowsClipboard.TryGetText(out string)` in `src/Broiler.App/WindowsClipboard.cs` - Security=Critical, Spec=none cited, `23A8D0`, PENDING
-  - Falsified if: CF_UNICODETEXT data whose global block holds no NUL character is read past GlobalSize(handle) by Marshal.PtrToStringUni
-- `Broiler.App.WindowsClipboard.SetText(string)` in `src/Broiler.App/WindowsClipboard.cs` - Security=Critical, Spec=none cited, `33578F`, PENDING
-  - Falsified if: Marshal.Copy or the terminating WriteInt16 for a text of n chars writes outside the (n + 1) * 2 bytes requested from GlobalAlloc
-- `Broiler.App.WindowsClipboard.OpenClipboard(IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `0B1567`, PENDING
-  - Falsified if: the result is not marshalled as a 4-byte Win32 BOOL, so a clipboard held by another process is reported as opened
-- `Broiler.App.WindowsClipboard.CloseClipboard()` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `819D6E`, PENDING
-  - Falsified if: the declaration is not user32 CloseClipboard taking no arguments, so the clipboard opened by TryGetText or SetText is never released to other processes
-- `Broiler.App.WindowsClipboard.EmptyClipboard()` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `82E0CE`, PENDING
-  - Falsified if: the declaration is not user32 EmptyClipboard taking no arguments, so SetText adds its block beside the previous owner's formats instead of replacing them
-- `Broiler.App.WindowsClipboard.IsClipboardFormatAvailable(uint)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `AAAC79`, PENDING
-  - Falsified if: the format is not passed as the 32-bit UINT user32 expects, so availability is answered for a format other than CF_UNICODETEXT
-- `Broiler.App.WindowsClipboard.GetClipboardData(uint)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `317039`, PENDING
-  - Falsified if: the returned HANDLE is marshalled narrower than pointer size, so a 64-bit process locks a truncated handle
-- `Broiler.App.WindowsClipboard.SetClipboardData(uint, IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `BDB3DF`, PENDING
-  - Falsified if: the returned HANDLE is not marshalled pointer-sized, so a block the clipboard refused reads as accepted and is never freed
-- `Broiler.App.WindowsClipboard.GlobalAlloc(uint, UIntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `B864A6`, PENDING
-  - Falsified if: the byte count is marshalled narrower than SIZE_T, so a 64-bit process allocates fewer bytes than SetText then writes
-- `Broiler.App.WindowsClipboard.GlobalFree(IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `80E1CC`, PENDING
-  - Falsified if: the handle is marshalled narrower than pointer size, so SetText frees a truncated handle instead of the block it allocated
-- `Broiler.App.WindowsClipboard.GlobalLock(IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `D52183`, PENDING
-  - Falsified if: the returned pointer is marshalled narrower than pointer size, so the Marshal reads and writes go to a truncated address
-- `Broiler.App.WindowsClipboard.GlobalUnlock(IntPtr)` in `src/Broiler.App/WindowsClipboard.cs` - Security=High, Spec=none cited, `BDEB39`, PENDING
-  - Falsified if: the declaration is not kernel32 GlobalUnlock taking the HGLOBAL, so a block stays locked after SetText hands it to the clipboard
 - `Broiler.Plate.PlateHostWindow` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=Critical, Spec=none cited, `9479CF`, PENDING
   - Falsified if: Ctrl+V in a broken-out dialog pastes text that did not come from the main window's WindowsClipboard read
 - `Broiler.Plate.PlateHostWindow.Activate()` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=High, Spec=none cited, `99FA51`, PENDING
@@ -266,5 +235,5 @@ An assessment is a comment, so changing one moves no fingerprint anywhere, and n
 mechanical checks that it is right; the check holds its values to their vocabularies and no
 further.
 
-248 of the 248 assessed units declare `Origin=AI`. Reading a declaration is the only thing
+233 of the 233 assessed units declare `Origin=AI`. Reading a declaration is the only thing
 that makes it read.

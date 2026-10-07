@@ -37,11 +37,9 @@ git clone https://github.com/Broiler-Platform/Broiler.Plate.git
 cd Broiler.Plate
 ```
 
-[`NuGet.config`](NuGet.config) maps `Broiler.*` packages to the Broiler-Platform GitHub
-Packages feed and other packages to nuget.org. Configure local NuGet credentials for the
-`github-broiler` source with a token that can read those packages before restoring. Keep
-credentials in your user-level NuGet configuration or environment, never in this repository.
-CI supplies its GitHub token through the setup action.
+[`NuGet.config`](NuGet.config) restores every package, the `Broiler.*` components included,
+from nuget.org; no feed credentials are needed. Package versions are pinned centrally in
+[`Directory.Packages.props`](Directory.Packages.props).
 
 Then build and run the Windows head:
 
@@ -159,28 +157,30 @@ serialization to the head or to `Broiler.Plate.Core` breaks it while leaving an 
 green. `PublishAot` is passed on the command line, never set in a `.csproj`, so day-to-day
 builds stay framework-dependent and fast.
 
-The setup action installs .NET 10 and configures GitHub Packages authentication. Both
-workflows grant `packages: read`, and only the publish workflow's release job may write
-(to push its tag and draft the release); no submodule checkout is required.
+The setup action installs .NET 10; every package restores from nuget.org, so no feed
+credentials are involved. Only the publish workflow's release job may write (to push its tag
+and draft the release); no submodule checkout is required.
 
 [`publish.yml`](.github/workflows/publish.yml) is dispatch-only and builds the Windows Plate
-with NativeAOT. It comes out as one zip artifact on the run, `broiler-plate-win-x64-<version>`,
-holding a single executable, `Broiler.Plate.Windows.exe`, which is the whole application: no
-.NET runtime to install and nothing beside it. Nothing is pushed to a feed. The run fails if
-the publish ever emits anything beside the executable other than symbols or XML docs, because
-an artifact without that file would be broken, and it starts the executable to check it stays
-up.
+in two variants, each a zip artifact on the run:
 
-Each run also drafts a GitHub pre-release, *Broiler Plate <version>*, with the executable
-zipped as `Broiler.Plate-<version>-win-x64.zip`. It stays a draft until someone publishes it
-under Releases; [`eng/release-draft.sh`](eng/release-draft.sh) builds it and can be run by
-hand from a run's artifacts.
+- `broiler-plate-win-x64-self-contained-<version>`: NativeAOT, a single executable,
+  `Broiler.Plate.Windows.exe`, which is the whole application: no .NET runtime to install and
+  nothing beside it. The run fails if the publish ever emits anything beside the executable
+  other than symbols or XML docs, because an artifact without that file would be broken.
+- `broiler-plate-win-x64-framework-dependent-<version>`: the IL build with its assemblies,
+  for machines with the .NET 10 runtime installed. The run fails if it is missing its
+  runtimeconfig or carries a runtime of its own.
 
-Its inputs are `nuget-source`, the feed the `Broiler.*` dependencies are restored from, and
-an optional `version-suffix` such as `preview.7`. With `broiler-github`, the default, the
-build restores exactly as `NuGet.config` says. With `nuget.org`, the `Broiler.*` mapping is
-dropped for the run and those packages come from nuget.org like everything else, which needs
-the pinned versions to be published there.
+Both are started to check they stay up. Nothing is pushed to a feed.
+
+Each run also drafts a GitHub pre-release, *Broiler Plate <version>*, carrying
+`Broiler.Plate-<version>-win-x64-self-contained.zip` and
+`Broiler.Plate-<version>-win-x64-framework-dependent.zip`. It stays a draft until someone
+publishes it under Releases; [`eng/release-draft.sh`](eng/release-draft.sh) builds it and can
+be run by hand from a run's artifacts.
+
+Its one input is an optional `version-suffix` such as `preview.7`.
 
 Each run takes the next preview version: `BroilerPlateVersion` in `Directory.Build.props` is
 the floor, raised past every earlier run's `plate-v*` tag. A run tags its commit only after
@@ -194,8 +194,7 @@ with tests beside it.
 | Path | Contents |
 |---|---|
 | `src/Broiler.Plate` | Shared application (`Broiler.Plate.Core`) — window, menu, toolbar, the two views, the zoom ladder, format registry, palette |
-| `src/Broiler.Plate.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard, and the break-out host that gives each dialog its own OS window |
-| `src/Broiler.App` | Source-only directory shared by desktop heads — per-platform clipboards. It has no project of its own; each head links the files it needs. |
+| `src/Broiler.Plate.Windows` | Windows head — `WinExe`, Direct2D, the Win32 clipboard from the `Broiler.Hosting.Windows` package, and the break-out host that gives each dialog its own OS window |
 | `eng/`, `scripts/` | Solution manifest and generator, preview version resolver, release drafting |
 | `.github/` | CI and release workflows, and the `setup-broiler` composite action |
 | `Directory.Build.props` | Product version and configuration decomposition |

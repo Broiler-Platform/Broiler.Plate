@@ -17,11 +17,6 @@
     <RuntimeIdentifier Condition="'$(Configuration)' == 'Debug-Windows' Or '$(Configuration)' == 'Release-Windows'">win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
-  <!-- The Win32 clipboard, vendored per product rather than submoduled. -->
-  <ItemGroup>
-    <Compile Include="..\Broiler.App\WindowsClipboard.cs" Link="WindowsClipboard.cs" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Broiler.Plate\Broiler.Plate.Core.csproj" />
     <!-- The PDF codec is referenced by the heads that register it, never by the
@@ -37,11 +32,13 @@
     <InternalsVisibleTo Include="Broiler.Plate.Windows.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Broiler.Documents.Pdf" Version="0.1.0-preview.16" />
-    <PackageReference Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.16" />
-    <PackageReference Include="Broiler.Graphics" Version="0.1.0-preview.5" />
-    <PackageReference Include="Broiler.Graphics.Windows" Version="0.1.0-preview.5" />
-    <PackageReference Include="Broiler.Media.Image.Managed" Version="0.1.0-preview.13" />
+    <PackageReference Include="Broiler.Documents.Pdf" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" />
+    <PackageReference Include="Broiler.Graphics" />
+    <PackageReference Include="Broiler.Graphics.Windows" />
+    <!-- The Win32 clipboard (WindowsClipboard), shared with the other Broiler applications. -->
+    <PackageReference Include="Broiler.Hosting.Windows" />
+    <PackageReference Include="Broiler.Media.Image.Managed" />
   </ItemGroup>
 
 </Project>
