@@ -194,8 +194,7 @@ with tests beside it.
 | Path | Contents |
 |---|---|
 | `src/Broiler.Plate` | Shared application (`Broiler.Plate.Core`) — window, menu, toolbar, the two views, the zoom ladder, format registry, palette |
-| `src/Broiler.Plate.Windows` | Windows head — `WinExe`, Direct2D, Win32 clipboard, and the break-out host that gives each dialog its own OS window |
-| `src/Broiler.App` | Source-only directory shared by desktop heads — per-platform clipboards. It has no project of its own; each head links the files it needs. |
+| `src/Broiler.Plate.Windows` | Windows head — `WinExe`, Direct2D, the Win32 clipboard from the `Broiler.Hosting.Windows` package, and the break-out host that gives each dialog its own OS window |
 | `eng/`, `scripts/` | Solution manifest and generator, preview version resolver, release drafting |
 | `.github/` | CI and release workflows, and the `setup-broiler` composite action |
 | `Directory.Build.props` | Product version and configuration decomposition |

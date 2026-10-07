@@ -1,5 +1,5 @@
 {
-  "$comment": "Per-declaration assurance for Broiler.Plate. Product projects only: the Broiler.Plate.Windows.Tests suite under src/tests and the eng/ and scripts/ tooling are not listed, so they are not covered. src/Broiler.App/WindowsClipboard.cs has no project of its own and is covered through the literal <Compile Include> in the Windows head; it is a vendored first-party copy of the file the Browser, Writer and Code heads also carry. No source here is third-party-derived and nothing is generated, so there are no excludes and no spdxOverrides.",
+  "$comment": "Per-declaration assurance for Broiler.Plate. Product projects only: the Broiler.Plate.Windows.Tests suite under src/tests and the eng/ and scripts/ tooling are not listed, so they are not covered. The Win32 clipboard comes from the Broiler.Hosting.Windows package and is assured there, not here. No source here is third-party-derived and nothing is generated, so there are no excludes and no spdxOverrides.",
   "schema": 1,
   "component": "Broiler.Plate",
   "projects": [
