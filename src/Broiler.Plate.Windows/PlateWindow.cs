@@ -49,7 +49,7 @@ internal sealed class PlateWindow : Direct2DWindow
     private readonly StandardLegacyGraphicsInputAdapter _legacyInput = new("broiler-plate");
 #pragma warning restore CS0618
 
-    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=2; Fingerprint=6BD93A
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=2; Fingerprint=53CC84
     // Broiler-Falsified-If: the viewer's host is built without the clipboard accessors, so Ctrl+V in the Open dialog finds nothing while the system clipboard holds text
     // Broiler-Human:        PENDING
     public PlateWindow(PlateFileFormats formats)
@@ -73,7 +73,7 @@ internal sealed class PlateWindow : Direct2DWindow
             ReadClipboardText,
             WriteClipboardText,
             getRenderer: () => Renderer);
-        _app = new PlateApp(_host, CloseNativeWindow, formats);
+        _app = new PlateApp(_host, CloseNativeWindow, formats, new WindowsPrintHost(), PlatePdfPrintPermission.For);
     }
 
     // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=3B311F

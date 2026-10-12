@@ -13,15 +13,15 @@ and the figures below are the measurement of how far from that claim the per-uni
 
 | Metric | Value |
 |---|---:|
-| Files scanned | 12 |
+| Files scanned | 14 |
 | Files not covered | 0 |
-| Files carrying an annotation | 12 |
-| Code units | 331 |
-| Relevant | 235 |
-| Exempt by predicate | 96 |
-| Annotated | 235 of 235 (100%) |
-| Human reviewed | 0 of 235 (0%) |
-| Unverified | 235 |
+| Files carrying an annotation | 14 |
+| Code units | 360 |
+| Relevant | 253 |
+| Exempt by predicate | 107 |
+| Annotated | 253 of 253 (100%) |
+| Human reviewed | 0 of 253 (0%) |
+| Unverified | 253 |
 
 ## Review states
 
@@ -29,18 +29,18 @@ and the figures below are the measurement of how far from that claim the per-uni
 |---|---:|
 | NEW | 0 |
 | AI_ASSESSED | 0 |
-| HUMAN_PENDING | 235 |
+| HUMAN_PENDING | 253 |
 | HUMAN_APPROVED_PENDING_FINGERPRINT | 0 |
 | VERIFIED | 0 |
 | STALE | 0 |
-| EXEMPT | 96 |
+| EXEMPT | 107 |
 
 ## IP risk
 
 | Value | Units |
 |---|---:|
-| None | 110 |
-| Low | 125 |
+| None | 120 |
+| Low | 133 |
 | Medium | 0 |
 | High | 0 |
 | Unknown | 0 |
@@ -50,10 +50,10 @@ and the figures below are the measurement of how far from that claim the per-uni
 
 | Value | Units |
 |---|---:|
-| None | 37 |
-| Low | 87 |
-| Medium | 57 |
-| High | 48 |
+| None | 38 |
+| Low | 93 |
+| Medium | 66 |
+| High | 50 |
 | Critical | 6 |
 | *not annotated* | 0 |
 
@@ -62,8 +62,8 @@ and the figures below are the measurement of how far from that claim the per-uni
 | Metric | Value |
 |---|---:|
 | Maximum | 8 / 10 |
-| Average over annotated units | 1.9 / 10 |
-| Units scored | 235 |
+| Average over annotated units | 1.8 / 10 |
+| Units scored | 253 |
 
 ## High-security review areas
 
@@ -73,6 +73,8 @@ and the figures below are the measurement of how far from that claim the per-uni
 - `Broiler.Plate.PlateHostWindow.SetText(string)` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=Critical, human line PENDING
 - `Broiler.Plate.PlateHostWindow.CreateImage(ReadOnlySpan<byte>)` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateHostWindow.SetForegroundWindow(IntPtr)` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=High, human line PENDING
+- `Broiler.Plate.PlatePdfPrintPermission` in `src/Broiler.Plate.Windows/PlatePdfPrintPermission.cs` - Security=High, human line PENDING
+- `Broiler.Plate.PlatePdfPrintPermission.For(DocumentReadResult)` in `src/Broiler.Plate.Windows/PlatePdfPrintPermission.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateWindow` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=Critical, human line PENDING
 - `Broiler.Plate.PlateWindow.OnCreated()` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateWindow.ReadClipboardText()` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=Critical, human line PENDING
@@ -93,7 +95,7 @@ and the figures below are the measurement of how far from that claim the per-uni
 - `Broiler.Plate.Program.MessageBox(IntPtr, string, string, uint)` in `src/Broiler.Plate.Windows/Program.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateApp` in `src/Broiler.Plate/PlateApp.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateApp.SignatureLength` in `src/Broiler.Plate/PlateApp.cs` - Security=High, human line PENDING
-- `Broiler.Plate.PlateApp.PlateApp(PlateUiHost, Action, PlateFileFormats?)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, human line PENDING
+- `Broiler.Plate.PlateApp.PlateApp(PlateUiHost, Action, PlateFileFormats?, IUiPrintHost?, Func<DocumentReadResult, PlatePrintPermission>?)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateApp.OpenFile(string)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateApp.ShowOpenDialog()` in `src/Broiler.Plate/PlateApp.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateApp.OpenDocument(string)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, human line PENDING
@@ -126,8 +128,8 @@ and the figures below are the measurement of how far from that claim the per-uni
 
 | Metric | Value |
 |---|---:|
-| Units carrying a criterion | 174 |
-| Units required to carry one | 54 |
+| Units carrying a criterion | 176 |
+| Units required to carry one | 56 |
 | Required and missing | 0 |
 
 A `Broiler-Falsified-If:` line states, at the declaration, the observation that would make
@@ -147,14 +149,14 @@ that the rule is reviewable in one place rather than in several hundred.
 
 | Case | Units |
 |---|---:|
-| TrivialPropertyOrAccessor | 19 |
+| TrivialPropertyOrAccessor | 20 |
 | ParameterAssigningConstructor | 0 |
 | TrivialExpressionBodiedMember | 7 |
 | CompilerSuppliedRecordOrEnumMember | 0 |
 | DelegatingOverrideOrOperator | 0 |
 | InsideAssemblyMarker | 0 |
-| FieldDeclaringStorage | 64 |
-| EnumMemberOfADeclaredVocabulary | 6 |
+| FieldDeclaringStorage | 71 |
+| EnumMemberOfADeclaredVocabulary | 9 |
 | DeclaredInSource | 0 |
 
 ## Per-unit exemptions
@@ -178,14 +180,14 @@ through a `<Compile Include>` it states, is left out of the record.
 ## Change detection
 
 `assurance.manifest.json` lists **every** code unit in the 2 covered assemblies -
-331 of them, exempt and relevant alike - with the fingerprint of its declaration.
+360 of them, exempt and relevant alike - with the fingerprint of its declaration.
 This manifest is a change-detection record, not a review. A unit listed there is watched, not reviewed:
 the entry records what the declaration's tokens hashed to when the generator last ran, and
 nothing else. What the manifest adds is that a unit the exemption predicate treats as
 trivial is no longer invisible: a semantic change to one moves a value in a generated file
 the check compares byte for byte. `dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance check --root Broiler.Plate` holds the manifest to the tree.
 
-Beside the units it lists **every covered file** - 12 of them - with a
+Beside the units it lists **every covered file** - 14 of them - with a
 fingerprint over the complete token stream of its compilation unit. A unit entry exists only
 for a declaration kind the scanner enumerates, and an enumeration is a whitelist: an
 `[assembly: ...]` attribute is a member of nothing and can be in no unit at all.

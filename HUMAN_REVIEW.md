@@ -5,7 +5,7 @@ GENERATED - DO NOT EDIT MANUALLY. Regenerate with
 `CODE-ASSURANCE.md`, `assurance.manifest.json` and every generated source header from the
 product tree.
 
-> **Status: PENDING.** Human-reviewed: 0 of 235 relevant units. `dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance check --root Broiler.Plate --release`
+> **Status: PENDING.** Human-reviewed: 0 of 253 relevant units. `dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance check --root Broiler.Plate --release`
 > fails while any relevant unit is without a decision bound to its current fingerprint.
 
 ## 1. How To Use This File
@@ -49,13 +49,13 @@ did, which is the narrower and the more useful of the two.
 
 | Metric | Value |
 |---|---:|
-| Files scanned | 12 |
-| Code units | 331 |
-| Relevant | 235 |
-| Exempt | 96 |
-| Assessed | 235 of 235 (100%) |
-| Human reviewed | 0 of 235 (0%) |
-| Unverified | 235 |
+| Files scanned | 14 |
+| Code units | 360 |
+| Relevant | 253 |
+| Exempt | 107 |
+| Assessed | 253 of 253 (100%) |
+| Human reviewed | 0 of 253 (0%) |
+| Unverified | 253 |
 | Aliases naming a decision | 0 |
 
 ## 4. Review States
@@ -67,11 +67,11 @@ annotations and the current fingerprints; nothing stores them.
 |---|---:|
 | NEW | 0 |
 | AI_ASSESSED | 0 |
-| HUMAN_PENDING | 235 |
+| HUMAN_PENDING | 253 |
 | HUMAN_APPROVED_PENDING_FINGERPRINT | 0 |
 | VERIFIED | 0 |
 | STALE | 0 |
-| EXEMPT | 96 |
+| EXEMPT | 107 |
 
 ## 5. Aliases In The Tree
 
@@ -86,15 +86,17 @@ relevant units in a state that blocks a release.
 | File | Units | Relevant | Exempt | Unverified | IP risk | Security risk | Criteria |
 |---|---:|---:|---:|---:|---|---|---:|
 | `src/Broiler.Plate.Windows/PlateHostWindow.cs` | 43 | 34 | 9 | 34 | Low | Critical | 25/6 |
+| `src/Broiler.Plate.Windows/PlatePdfPrintPermission.cs` | 2 | 2 | 0 | 2 | Low | High | 2/2 |
 | `src/Broiler.Plate.Windows/PlateWindow.cs` | 25 | 21 | 4 | 21 | Low | Critical | 18/8 |
 | `src/Broiler.Plate.Windows/PlateWindowsUiHost.cs` | 13 | 7 | 6 | 7 | Low | High | 7/4 |
 | `src/Broiler.Plate.Windows/Program.cs` | 8 | 8 | 0 | 8 | Low | High | 6/6 |
 | `src/Broiler.Plate/PlateAbout.cs` | 2 | 2 | 0 | 2 | Low | Low | 2/0 |
-| `src/Broiler.Plate/PlateApp.cs` | 119 | 68 | 51 | 68 | Low | High | 52/9 |
+| `src/Broiler.Plate/PlateApp.cs` | 134 | 78 | 56 | 78 | Low | High | 52/9 |
 | `src/Broiler.Plate/PlateFileFormats.cs` | 19 | 14 | 5 | 14 | Low | High | 14/7 |
 | `src/Broiler.Plate/PlateImageFormats.cs` | 16 | 16 | 0 | 16 | Low | High | 15/12 |
 | `src/Broiler.Plate/PlateNotesDialog.cs` | 13 | 11 | 2 | 11 | Low | Medium | 6/0 |
 | `src/Broiler.Plate/PlatePalette.cs` | 18 | 18 | 0 | 18 | None | None | 0/0 |
+| `src/Broiler.Plate/PlatePrinting.cs` | 12 | 6 | 6 | 6 | Low | Medium | 0/0 |
 | `src/Broiler.Plate/PlateUiHost.cs` | 27 | 13 | 14 | 13 | Low | High | 9/2 |
 | `src/Broiler.Plate/PlateZoom.cs` | 28 | 23 | 5 | 23 | Low | Medium | 20/0 |
 
@@ -125,6 +127,10 @@ written out, so a unit that becomes `High` joins it at the next generation.
   - Falsified if: an encoded image the renderer's decoder rejects with an exception escapes CreateImage instead of returning BImageHandle.Invalid
 - `Broiler.Plate.PlateHostWindow.SetForegroundWindow(IntPtr)` in `src/Broiler.Plate.Windows/PlateHostWindow.cs` - Security=High, Spec=none cited, `5B5789`, PENDING
   - Falsified if: the HWND is marshalled narrower than pointer size, so a 64-bit process brings a truncated window handle to the foreground
+- `Broiler.Plate.PlatePdfPrintPermission` in `src/Broiler.Plate.Windows/PlatePdfPrintPermission.cs` - Security=High, Spec=none cited, `B821B6`, PENDING
+  - Falsified if: an encrypted PDF opened without the owner password whose permissions lack Print is answered anything but Refused, or one with Print but not PrintHighQuality anything but LowResolution
+- `Broiler.Plate.PlatePdfPrintPermission.For(DocumentReadResult)` in `src/Broiler.Plate.Windows/PlatePdfPrintPermission.cs` - Security=High, Spec=none cited, `D0DC40`, PENDING
+  - Falsified if: a document that is not an encrypted PDF, or one opened with the owner password, is answered anything but Allowed
 - `Broiler.Plate.PlateWindow` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=Critical, Spec=none cited, `1FD40B`, PENDING
   - Falsified if: a paste requested before OnCreated has bound the clipboard reaches WindowsClipboard instead of answering null
 - `Broiler.Plate.PlateWindow.OnCreated()` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=High, Spec=none cited, `3B311F`, PENDING
@@ -165,15 +171,15 @@ written out, so a unit that becomes `High` joins it at the next generation.
   - Falsified if: a hostile file opened through OpenFile ends the viewer with an exception instead of leaving a refused-open line in the status bar
 - `Broiler.Plate.PlateApp.SignatureLength` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `461D0D`, PENDING
   - Falsified if: a signature that ContentTypeForSignature recognizes needs more leading bytes than SignatureLength, so a graphic of that format is handed to the document codecs first
-- `Broiler.Plate.PlateApp.PlateApp(PlateUiHost, Action, PlateFileFormats?)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `4B8E45`, PENDING
+- `Broiler.Plate.PlateApp.PlateApp(PlateUiHost, Action, PlateFileFormats?, IUiPrintHost?, Func<DocumentReadResult, PlatePrintPermission>?)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `096E8D`, PENDING
   - Falsified if: a PlateApp constructed without formats opens a PDF, although CreateDefault composes only the RTF, DOCX, HTML and Markdown codecs
 - `Broiler.Plate.PlateApp.OpenFile(string)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `C3CEFC`, PENDING
   - Falsified if: a file whose leading bytes carry a PNG, JPEG, GIF, BMP, TIFF or WebP signature is handed to a document codec before the image decoder sees it
 - `Broiler.Plate.PlateApp.ShowOpenDialog()` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `AF9E20`, PENDING
   - Falsified if: a cancelled dialog, or one accepted with an empty or whitespace name, still calls OpenFile
-- `Broiler.Plate.PlateApp.OpenDocument(string)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `91DBBF`, PENDING
+- `Broiler.Plate.PlateApp.OpenDocument(string)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `A8F18F`, PENDING
   - Falsified if: a document the codecs' default read limits refuse is read whole into memory first, because it reaches SelectAndRead other than as the open file stream
-- `Broiler.Plate.PlateApp.OpenImage(string)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `889289`, PENDING
+- `Broiler.Plate.PlateApp.OpenImage(string)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `61CFD5`, PENDING
   - Falsified if: a file of several hundred megabytes that carries an image signature is read whole into memory by File.ReadAllBytes before any decoder limit applies
 - `Broiler.Plate.PlateApp.ReadSignature(string, out bool)` in `src/Broiler.Plate/PlateApp.cs` - Security=High, Spec=none cited, `59B600`, PENDING
   - Falsified if: a file shorter than SignatureLength yields bytes past those read, such as trailing zeros that complete a signature
@@ -237,5 +243,5 @@ An assessment is a comment, so changing one moves no fingerprint anywhere, and n
 mechanical checks that it is right; the check holds its values to their vocabularies and no
 further.
 
-235 of the 235 assessed units declare `Origin=AI`. Reading a declaration is the only thing
+253 of the 253 assessed units declare `Origin=AI`. Reading a declaration is the only thing
 that makes it read.
