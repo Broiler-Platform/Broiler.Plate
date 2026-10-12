@@ -5,7 +5,7 @@ GENERATED - DO NOT EDIT MANUALLY. Regenerate with
 `CODE-ASSURANCE.md`, `assurance.manifest.json` and every generated source header from the
 product tree.
 
-> **Status: PENDING.** Human-reviewed: 0 of 233 relevant units. `dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance check --root Broiler.Plate --release`
+> **Status: PENDING.** Human-reviewed: 0 of 235 relevant units. `dotnet run --project Broiler.Code/src/Broiler.Code.Review.Cli -c Release -- assurance check --root Broiler.Plate --release`
 > fails while any relevant unit is without a decision bound to its current fingerprint.
 
 ## 1. How To Use This File
@@ -50,12 +50,12 @@ did, which is the narrower and the more useful of the two.
 | Metric | Value |
 |---|---:|
 | Files scanned | 12 |
-| Code units | 329 |
-| Relevant | 233 |
+| Code units | 331 |
+| Relevant | 235 |
 | Exempt | 96 |
-| Assessed | 233 of 233 (100%) |
-| Human reviewed | 0 of 233 (0%) |
-| Unverified | 233 |
+| Assessed | 235 of 235 (100%) |
+| Human reviewed | 0 of 235 (0%) |
+| Unverified | 235 |
 | Aliases naming a decision | 0 |
 
 ## 4. Review States
@@ -67,7 +67,7 @@ annotations and the current fingerprints; nothing stores them.
 |---|---:|
 | NEW | 0 |
 | AI_ASSESSED | 0 |
-| HUMAN_PENDING | 233 |
+| HUMAN_PENDING | 235 |
 | HUMAN_APPROVED_PENDING_FINGERPRINT | 0 |
 | VERIFIED | 0 |
 | STALE | 0 |
@@ -86,7 +86,7 @@ relevant units in a state that blocks a release.
 | File | Units | Relevant | Exempt | Unverified | IP risk | Security risk | Criteria |
 |---|---:|---:|---:|---:|---|---|---:|
 | `src/Broiler.Plate.Windows/PlateHostWindow.cs` | 43 | 34 | 9 | 34 | Low | Critical | 25/6 |
-| `src/Broiler.Plate.Windows/PlateWindow.cs` | 23 | 19 | 4 | 19 | Low | Critical | 17/7 |
+| `src/Broiler.Plate.Windows/PlateWindow.cs` | 25 | 21 | 4 | 21 | Low | Critical | 18/8 |
 | `src/Broiler.Plate.Windows/PlateWindowsUiHost.cs` | 13 | 7 | 6 | 7 | Low | High | 7/4 |
 | `src/Broiler.Plate.Windows/Program.cs` | 8 | 8 | 0 | 8 | Low | High | 6/6 |
 | `src/Broiler.Plate/PlateAbout.cs` | 2 | 2 | 0 | 2 | Low | Low | 2/0 |
@@ -139,6 +139,8 @@ written out, so a unit that becomes `High` joins it at the next generation.
   - Falsified if: DestroyWindow is called with a zero or already-destroyed window handle
 - `Broiler.Plate.PlateWindow.DestroyWindow(IntPtr)` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=High, Spec=none cited, `B255F0`, PENDING
   - Falsified if: the HWND is marshalled narrower than pointer size, so a 64-bit process destroys a truncated window handle
+- `Broiler.Plate.PlateWindow.SetFocus(IntPtr)` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=High, Spec=none cited, `66F237`, PENDING
+  - Falsified if: the HWND is marshalled narrower than pointer size, so a 64-bit process focuses a truncated window handle
 - `Broiler.Plate.PlateWindowsUiHost` in `src/Broiler.Plate.Windows/PlateWindowsUiHost.cs` - Security=High, Spec=none cited, `0F2F4A`, PENDING
   - Falsified if: ClientToScreen writes the owner's client origin into a NativePoint that is not two sequential 32-bit integers
 - `Broiler.Plate.PlateWindowsUiHost.ToScreenPlacement(BWindow?, UiHostWindowRequest)` in `src/Broiler.Plate.Windows/PlateWindowsUiHost.cs` - Security=High, Spec=none cited, `B8790F`, PENDING
@@ -235,5 +237,5 @@ An assessment is a comment, so changing one moves no fingerprint anywhere, and n
 mechanical checks that it is right; the check holds its values to their vocabularies and no
 further.
 
-233 of the 233 assessed units declare `Origin=AI`. Reading a declaration is the only thing
+235 of the 235 assessed units declare `Origin=AI`. Reading a declaration is the only thing
 that makes it read.

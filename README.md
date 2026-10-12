@@ -209,14 +209,21 @@ with neither `RELEASE` nor `WINDOWS` defined.
 
 ## Dependencies
 
+NuGet package versions are managed centrally in
+[`Directory.Packages.props`](Directory.Packages.props).
+
+The platform hosting glue — the Win32 clipboard and window sizing — comes from the
+`Broiler.Hosting.Windows` package, the same one the other Broiler applications use.
+
 The application consumes the following components as NuGet packages, directly or
-transitively. Versions are pinned in the project files.
+transitively:
 
 | Component | Purpose |
 |---|---|
 | `Broiler.Documents` | Document model and the RTF, DOCX, HTML, Markdown and PDF codecs |
 | `Broiler.DOM` | Canonical DOM, HTML tokenization, parsing, traversal, serialization |
 | `Broiler.Graphics` | Managed bitmap/codec/raster core plus platform backends |
+| `Broiler.Hosting` | Platform hosting glue, clipboard, and window sizing |
 | `Broiler.Media` | Image, audio and video abstractions and managed codecs |
 | `Broiler.Input` | Keyboard, mouse, pen, touch and text input abstractions |
 | `Broiler.UI` | Platform-neutral retained-mode UI toolkit |

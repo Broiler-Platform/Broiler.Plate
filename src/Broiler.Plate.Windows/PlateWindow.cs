@@ -3,15 +3,15 @@
 //
 // Broiler Code Assurance
 // ----------------------
-// Relevant units:   19
-// Annotated:        19/19
+// Relevant units:   21
+// Annotated:        21/21
 // Exempt:           4
-// Human-reviewed:   0/19
+// Human-reviewed:   0/21
 // IP risk:          Low
 // Security risk:    Critical
-// Criteria:         17/7
+// Criteria:         18/8
 // Resource impact:  7/10 max
-// Unverified:       19
+// Unverified:       21
 //
 // GENERATED - DO NOT EDIT MANUALLY
 
@@ -188,10 +188,34 @@ internal sealed class PlateWindow : Direct2DWindow
     // Broiler-Human:        PENDING
     private void Dispatch(UiInputEvent input) => _app.Dispatch(input);
 
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=0; Fingerprint=BC3127
+    // Broiler-Human:        PENDING
+    protected override void OnNativeWindowMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam)
+    {
+        base.OnNativeWindowMessage(hwnd, message, wParam, lParam);
+        if (hwnd == NativeHandle)
+        {
+            WindowsWindowSizing.OnMessage(hwnd, message, lParam, DpiScale);
+            // Transfer Win32 focus from the top-level frame to the render child window
+            // on activation and focus so keystrokes are never dropped.
+            if ((message == 0x0006 && wParam.ToInt64() != 0) || message == 0x0007)
+            {
+                if (RenderNativeHandle != IntPtr.Zero)
+                    _ = SetFocus(RenderNativeHandle);
+            }
+        }
+    }
+
     // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=B255F0
     // Broiler-Falsified-If: the HWND is marshalled narrower than pointer size, so a 64-bit process destroys a truncated window handle
     // Broiler-Human:        PENDING
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyWindow(IntPtr hwnd);
+
+    // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=66F237
+    // Broiler-Falsified-If: the HWND is marshalled narrower than pointer size, so a 64-bit process focuses a truncated window handle
+    // Broiler-Human:        PENDING
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetFocus(IntPtr hWnd);
 }

@@ -16,12 +16,12 @@ and the figures below are the measurement of how far from that claim the per-uni
 | Files scanned | 12 |
 | Files not covered | 0 |
 | Files carrying an annotation | 12 |
-| Code units | 329 |
-| Relevant | 233 |
+| Code units | 331 |
+| Relevant | 235 |
 | Exempt by predicate | 96 |
-| Annotated | 233 of 233 (100%) |
-| Human reviewed | 0 of 233 (0%) |
-| Unverified | 233 |
+| Annotated | 235 of 235 (100%) |
+| Human reviewed | 0 of 235 (0%) |
+| Unverified | 235 |
 
 ## Review states
 
@@ -29,7 +29,7 @@ and the figures below are the measurement of how far from that claim the per-uni
 |---|---:|
 | NEW | 0 |
 | AI_ASSESSED | 0 |
-| HUMAN_PENDING | 233 |
+| HUMAN_PENDING | 235 |
 | HUMAN_APPROVED_PENDING_FINGERPRINT | 0 |
 | VERIFIED | 0 |
 | STALE | 0 |
@@ -39,8 +39,8 @@ and the figures below are the measurement of how far from that claim the per-uni
 
 | Value | Units |
 |---|---:|
-| None | 109 |
-| Low | 124 |
+| None | 110 |
+| Low | 125 |
 | Medium | 0 |
 | High | 0 |
 | Unknown | 0 |
@@ -51,9 +51,9 @@ and the figures below are the measurement of how far from that claim the per-uni
 | Value | Units |
 |---|---:|
 | None | 37 |
-| Low | 86 |
+| Low | 87 |
 | Medium | 57 |
-| High | 47 |
+| High | 48 |
 | Critical | 6 |
 | *not annotated* | 0 |
 
@@ -63,7 +63,7 @@ and the figures below are the measurement of how far from that claim the per-uni
 |---|---:|
 | Maximum | 8 / 10 |
 | Average over annotated units | 1.9 / 10 |
-| Units scored | 233 |
+| Units scored | 235 |
 
 ## High-security review areas
 
@@ -80,6 +80,7 @@ and the figures below are the measurement of how far from that claim the per-uni
 - `Broiler.Plate.PlateWindow.CloseNativeWindow()` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateWindow.CloseNativeWindowNow()` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateWindow.DestroyWindow(IntPtr)` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=High, human line PENDING
+- `Broiler.Plate.PlateWindow.SetFocus(IntPtr)` in `src/Broiler.Plate.Windows/PlateWindow.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateWindowsUiHost` in `src/Broiler.Plate.Windows/PlateWindowsUiHost.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateWindowsUiHost.ToScreenPlacement(BWindow?, UiHostWindowRequest)` in `src/Broiler.Plate.Windows/PlateWindowsUiHost.cs` - Security=High, human line PENDING
 - `Broiler.Plate.PlateWindowsUiHost.NativePoint` in `src/Broiler.Plate.Windows/PlateWindowsUiHost.cs` - Security=High, human line PENDING
@@ -125,8 +126,8 @@ and the figures below are the measurement of how far from that claim the per-uni
 
 | Metric | Value |
 |---|---:|
-| Units carrying a criterion | 173 |
-| Units required to carry one | 53 |
+| Units carrying a criterion | 174 |
+| Units required to carry one | 54 |
 | Required and missing | 0 |
 
 A `Broiler-Falsified-If:` line states, at the declaration, the observation that would make
@@ -177,7 +178,7 @@ through a `<Compile Include>` it states, is left out of the record.
 ## Change detection
 
 `assurance.manifest.json` lists **every** code unit in the 2 covered assemblies -
-329 of them, exempt and relevant alike - with the fingerprint of its declaration.
+331 of them, exempt and relevant alike - with the fingerprint of its declaration.
 This manifest is a change-detection record, not a review. A unit listed there is watched, not reviewed:
 the entry records what the declaration's tokens hashed to when the generator last ran, and
 nothing else. What the manifest adds is that a unit the exemption predicate treats as
