@@ -1,14 +1,14 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <BroilerDocumentsVersion>0.1.0-preview.23</BroilerDocumentsVersion>
+    <BroilerDocumentsVersion>0.1.0-preview.25</BroilerDocumentsVersion>
     <BroilerGraphicsVersion>0.1.0-preview.12</BroilerGraphicsVersion>
     <!-- Printing: the page model is in Broiler.Graphics 0.1.0-preview.13, the backends unchanged. -->
     <BroilerGraphicsCoreVersion>0.1.0-preview.13</BroilerGraphicsCoreVersion>
     <BroilerInputVersion>0.1.0-preview.6</BroilerInputVersion>
     <BroilerHostingVersion>0.1.0-preview.10</BroilerHostingVersion>
     <BroilerMediaVersion>0.1.0-preview.15</BroilerMediaVersion>
-    <BroilerUiVersion>0.1.0-preview.21</BroilerUiVersion>
+    <BroilerUiVersion>0.1.0-preview.22</BroilerUiVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Broiler.Documents.Docx" Version="$(BroilerDocumentsVersion)" />
