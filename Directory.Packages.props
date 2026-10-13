@@ -1,22 +1,25 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <BroilerDocumentsVersion>0.1.0-preview.22</BroilerDocumentsVersion>
+    <BroilerDocumentsVersion>0.1.0-preview.25</BroilerDocumentsVersion>
     <BroilerGraphicsVersion>0.1.0-preview.12</BroilerGraphicsVersion>
+    <!-- Printing: the page model is in Broiler.Graphics 0.1.0-preview.13, the backends unchanged. -->
+    <BroilerGraphicsCoreVersion>0.1.0-preview.13</BroilerGraphicsCoreVersion>
     <BroilerInputVersion>0.1.0-preview.6</BroilerInputVersion>
-    <BroilerHostingVersion>0.1.0-preview.9</BroilerHostingVersion>
+    <BroilerHostingVersion>0.1.0-preview.10</BroilerHostingVersion>
     <BroilerMediaVersion>0.1.0-preview.15</BroilerMediaVersion>
-    <BroilerUiVersion>0.1.0-preview.20</BroilerUiVersion>
+    <BroilerUiVersion>0.1.0-preview.22</BroilerUiVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Broiler.Documents.Docx" Version="$(BroilerDocumentsVersion)" />
     <PackageVersion Include="Broiler.Documents.Html" Version="$(BroilerDocumentsVersion)" />
     <PackageVersion Include="Broiler.Documents.Markdown" Version="$(BroilerDocumentsVersion)" />
     <PackageVersion Include="Broiler.Documents.Model" Version="$(BroilerDocumentsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Pagination" Version="$(BroilerDocumentsVersion)" />
     <PackageVersion Include="Broiler.Documents.Pdf" Version="$(BroilerDocumentsVersion)" />
     <PackageVersion Include="Broiler.Documents.Pdf.Images" Version="$(BroilerDocumentsVersion)" />
     <PackageVersion Include="Broiler.Documents.Rtf" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Graphics" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Graphics" Version="$(BroilerGraphicsCoreVersion)" />
     <PackageVersion Include="Broiler.Graphics.Windows" Version="$(BroilerGraphicsVersion)" />
     <PackageVersion Include="Broiler.Hosting.Windows" Version="$(BroilerHostingVersion)" />
     <PackageVersion Include="Broiler.Input.Keyboard" Version="$(BroilerInputVersion)" />
@@ -28,6 +31,7 @@
     <PackageVersion Include="Broiler.UI.ImageView.Standard" Version="$(BroilerUiVersion)" />
     <PackageVersion Include="Broiler.UI.Label.Standard" Version="$(BroilerUiVersion)" />
     <PackageVersion Include="Broiler.UI.Menu.Standard" Version="$(BroilerUiVersion)" />
+    <PackageVersion Include="Broiler.UI.PrintDialog.Standard" Version="$(BroilerUiVersion)" />
     <PackageVersion Include="Broiler.UI.RichEdit.Standard" Version="$(BroilerUiVersion)" />
     <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="$(BroilerUiVersion)" />
     <PackageVersion Include="Broiler.UI.Window.Standard" Version="$(BroilerUiVersion)" />

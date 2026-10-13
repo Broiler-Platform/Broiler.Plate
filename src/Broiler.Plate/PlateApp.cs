@@ -3,15 +3,15 @@
 //
 // Broiler Code Assurance
 // ----------------------
-// Relevant units:   68
-// Annotated:        68/68
-// Exempt:           51
-// Human-reviewed:   0/68
+// Relevant units:   78
+// Annotated:        78/78
+// Exempt:           56
+// Human-reviewed:   0/78
 // IP risk:          Low
 // Security risk:    High
 // Criteria:         52/9
 // Resource impact:  8/10 max
-// Unverified:       68
+// Unverified:       78
 //
 // GENERATED - DO NOT EDIT MANUALLY
 
@@ -19,10 +19,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Broiler.Documents;
 using Broiler.Documents.Model;
+using Broiler.Documents.Pagination;
 using Broiler.Graphics;
 using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Paging;
 using Broiler.Graphics.RenderList;
 using Broiler.Graphics.Resources;
 using Broiler.Graphics.Text;
@@ -41,6 +45,8 @@ using Broiler.UI.Label;
 using Broiler.UI.Label.Standard;
 using Broiler.UI.Menu;
 using Broiler.UI.Menu.Standard;
+using Broiler.UI.PrintDialog;
+using Broiler.UI.PrintDialog.Standard;
 using Broiler.UI.RichEdit.Standard;
 using Broiler.UI.Standard;
 using Broiler.UI.Toolbar;
@@ -122,6 +128,21 @@ internal sealed class PlateApp : IDisposable
     private UiMenuItem? _notesMenuItem;
     private UiMenuItem? _closeMenuItem;
 
+    private readonly IUiPrintHost? _printHost;
+    private readonly Func<DocumentReadResult, PlatePrintPermission>? _printPermission;
+
+    /// <summary>What the file on display allows to be printed. A picture always may.</summary>
+    private PlatePrintPermission _filePrintPermission = PlatePrintPermission.Allowed;
+
+    /// <summary>True from the moment the print dialog opens until its job has been handed over.</summary>
+    private bool _printing;
+
+    /// <summary>
+    /// A finished print job waiting to be reported: it ends on a worker thread, and the status
+    /// line is the UI thread's, so the next frame picks it up.
+    /// </summary>
+    private Task<UiPrintResult>? _finishedPrint;
+
     /// <summary>
     /// The image currently on display, and the size it decoded to. The handle is
     /// renderer-owned, so it is released on the way to the next file and again on
@@ -136,6 +157,17 @@ internal sealed class PlateApp : IDisposable
     // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=473DBB
     // Broiler-Human:        PENDING
     private static readonly BSize NotesDialogPreferredSize = new(560, 320);
+    // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=17ACAF
+    // Broiler-Human:        PENDING
+    private static readonly BSize PrintDialogPreferredSize = new(760, 520);
+
+    /// <summary>
+    /// The resolution a file that may only be printed at low quality is printed at: what ISO
+    /// 32000-1 calls "a low-level representation", taken as half an office printer's 300 dpi.
+    /// </summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=7EB8F8
+    // Broiler-Human:        PENDING
+    private const double LowQualityPrintDpi = 150;
 
     /// <summary>
     /// How much of a file has to be in hand to tell a graphic from a document.
@@ -147,6 +179,11 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private const int SignatureLength = 32;
 
+    /// <param name="printHost">How this head prints, or null where it cannot; File, Print is then unavailable.</param>
+    /// <param name="printPermission">
+    /// What an opened document's own rules allow - a PDF's permissions - or null when every
+    /// document may be printed. The head that composes the PDF codec is the one that can read them.
+    /// </param>
     /// <param name="formats">
     /// The formats this viewer offers. Null composes
     /// <see cref="PlateFileFormats.CreateDefault"/> - the RTF, DOCX, HTML and
@@ -154,12 +191,15 @@ internal sealed class PlateApp : IDisposable
     /// registers PDF) passes its own set, which is what keeps that codec out of
     /// heads that did not ask for it.
     /// </param>
-    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=2; Fingerprint=4B8E45
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=2; Fingerprint=096E8D
     // Broiler-Falsified-If: a PlateApp constructed without formats opens a PDF, although CreateDefault composes only the RTF, DOCX, HTML and Markdown codecs
     // Broiler-Human:        PENDING
-    public PlateApp(PlateUiHost host, Action requestClose, PlateFileFormats? formats = null)
+    public PlateApp(PlateUiHost host, Action requestClose, PlateFileFormats? formats = null, IUiPrintHost? printHost = null,
+        Func<DocumentReadResult, PlatePrintPermission>? printPermission = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
+        _printHost = printHost;
+        _printPermission = printPermission;
         _requestClose = requestClose ?? throw new ArgumentNullException(nameof(requestClose));
         _formats = formats ?? PlateFileFormats.CreateDefault();
         _documentCatalog = _formats.CreateOpenCatalog();
@@ -267,17 +307,38 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     internal double? Zoom => _content.CurrentView == PlateViewKind.Image ? _imageZoom : _documentZoom;
 
-    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=7; Fingerprint=AFD3F6
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=7; Fingerprint=423CFF
     // Broiler-Human:        PENDING
-    public BRenderList RenderFrame() => _session.RenderFrame();
+    public BRenderList RenderFrame()
+    {
+        ReportFinishedPrint();
+        return _session.RenderFrame();
+    }
 
-    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=8; Fingerprint=B69859
+    /// <summary>True while a print dialog is open or its job is being handed to the printer.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=4A7DFE
+    // Broiler-Human:        PENDING
+    internal bool IsPrinting => _printing;
+
+    /// <summary>True when File, Print would print what is on display.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=8971D3
+    // Broiler-Human:        PENDING
+    internal bool CanPrint => _printHost is not null && _currentPath is not null && !_printing &&
+        _filePrintPermission != PlatePrintPermission.Refused;
+
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=8; Fingerprint=C4A2FF
     // Broiler-Falsified-If: a key press answered as Ctrl+O or as a zoom shortcut is also delivered to the session, so the document view acts on the same key
     // Broiler-Human:        PENDING
     public void Dispatch(UiInputEvent input)
     {
         TrackModifiers(input);
         if (HandleOpenShortcut(input))
+        {
+            _host.RequestInvalidate();
+            return;
+        }
+
+        if (HandlePrintShortcut(input))
         {
             _host.RequestInvalidate();
             return;
@@ -356,7 +417,7 @@ internal sealed class PlateApp : IDisposable
         _session.Dispose();
     }
 
-    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=2; Fingerprint=CD50D5
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=2; Fingerprint=7B611C
     // Broiler-Falsified-If: the Close command can run while no file is open, or the Notes command while the last read recorded no diagnostics
     // Broiler-Human:        PENDING
     private StandardMenu CreateMenu()
@@ -364,6 +425,7 @@ internal sealed class PlateApp : IDisposable
         var dispatcher = new StandardCommandDispatcher();
         dispatcher.Add(new StandardCommand("file.open", ShowOpenDialog));
         dispatcher.Add(new StandardCommand("file.close", CloseFile, () => _currentPath is not null));
+        dispatcher.Add(new StandardCommand("file.print", ShowPrintDialog, () => CanPrint));
         dispatcher.Add(new StandardCommand("file.exit", _requestClose));
         dispatcher.Add(new StandardCommand("view.zoom.in", () => StepZoom(PlateZoomStep.In)));
         dispatcher.Add(new StandardCommand("view.zoom.out", () => StepZoom(PlateZoomStep.Out)));
@@ -376,6 +438,7 @@ internal sealed class PlateApp : IDisposable
         file.Children.Add(new UiMenuItem("open", "Open...") { CommandName = "file.open", AccessKey = 'O' });
         _closeMenuItem = new UiMenuItem("close", "Close") { CommandName = "file.close", AccessKey = 'C' };
         file.Children.Add(_closeMenuItem);
+        file.Children.Add(new UiMenuItem("print", "Print...") { CommandName = "file.print", AccessKey = 'P', Accelerator = "Ctrl+P" });
         file.Children.Add(new UiMenuItem("exit", "Exit") { CommandName = "file.exit", AccessKey = 'X' });
 
         var view = new UiMenuItem("view", "View") { AccessKey = 'V' };
@@ -772,7 +835,7 @@ internal sealed class PlateApp : IDisposable
     /// Reads <paramref name="fullPath"/> as a document and shows it, or reports
     /// why it could not and leaves what is on display alone.
     /// </summary>
-    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=91DBBF
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=7; Fingerprint=A8F18F
     // Broiler-Falsified-If: a document the codecs' default read limits refuse is read whole into memory first, because it reaches SelectAndRead other than as the open file stream
     // Broiler-Human:        PENDING
     private bool OpenDocument(string fullPath)
@@ -797,6 +860,7 @@ internal sealed class PlateApp : IDisposable
         }
 
         ReleaseImage();
+        _filePrintPermission = _printPermission?.Invoke(selection.Result) ?? PlatePrintPermission.Allowed;
         _documentView.Document = selection.Result.Document;
         _documentView.Selection = RichTextRange.Caret(RichTextDocument.Start);
         ShowView(PlateViewKind.Document);
@@ -813,7 +877,7 @@ internal sealed class PlateApp : IDisposable
     /// upload that fails is reported as the decoder's refusal rather than as a
     /// missing file.
     /// </summary>
-    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=889289
+    // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=61CFD5
     // Broiler-Falsified-If: a file of several hundred megabytes that carries an image signature is read whole into memory by File.ReadAllBytes before any decoder limit applies
     // Broiler-Human:        PENDING
     private bool OpenImage(string fullPath)
@@ -835,6 +899,7 @@ internal sealed class PlateApp : IDisposable
         _imagePixelSize = handle.PixelSize.IsEmpty
             ? PlateImageFormats.MeasureDisplaySize(bytes, 0)
             : handle.PixelSize;
+        _filePrintPermission = PlatePrintPermission.Allowed;
         _imageView.Image = handle;
         _imageView.AltText = Path.GetFileNameWithoutExtension(fullPath);
 
@@ -944,6 +1009,131 @@ internal sealed class PlateApp : IDisposable
 
         ShowOpenDialog();
         return true;
+    }
+
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=1; Fingerprint=0C3E0A
+    // Broiler-Human:        PENDING
+    private bool HandlePrintShortcut(UiInputEvent input)
+    {
+        if (input.Kind != UiInputEventKind.KeyboardKey ||
+            input.KeyTransition != KeyboardKeyTransition.Down ||
+            (input.KeyModifiers & (KeyboardModifierState.Control | KeyboardModifierState.Shift | KeyboardModifierState.Alt)) != KeyboardModifierState.Control)
+        {
+            return false;
+        }
+
+        if (!IsKey(input, VirtualKeyP, "P"))
+            return false;
+
+        ShowPrintDialog();
+        return true;
+    }
+
+    /// <summary>The Win32 virtual-key code for P.</summary>
+    // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=562A42
+    // Broiler-Human:        PENDING
+    private const int VirtualKeyP = 0x50;
+
+    /// <summary>
+    /// Prints what is on display: a document laid out on the page it states, or a picture fitted
+    /// to the page, chosen and previewed in the print dialog - or the platform's own print UI -
+    /// and handed to the head's print host. A file whose rules refuse printing is not printed.
+    /// </summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=4; Fingerprint=A2E2A2
+    // Broiler-Human:        PENDING
+    private void ShowPrintDialog()
+    {
+        if (_printing)
+            return;
+
+        if (_printHost is null || _currentPath is null)
+        {
+            _lastAction = _printHost is null ? "Printing is not available here" : "Open a file to print it";
+            RefreshUi();
+            return;
+        }
+
+        if (_filePrintPermission == PlatePrintPermission.Refused)
+        {
+            _lastAction = _lastReadFileName + " does not permit printing";
+            RefreshUi();
+            return;
+        }
+
+        IBPagedDocument document = _content.CurrentView == PlateViewKind.Image
+            ? new PlatePicturePrintDocument(_currentPath, _imagePixelSize)
+            : new RichTextPagedDocument(_documentView.Document, _lastReadFileName,
+                new DocumentPaginator(DocumentPaginator.CreateDefaultSettings() with { DefaultFontFamily = _documentView.Font.FamilyName }));
+        UiPrintSettings? initial = _filePrintPermission == PlatePrintPermission.LowResolution
+            ? new UiPrintSettings { PageSetup = document.PreferredSetup, Dpi = LowQualityPrintDpi }
+            : null;
+
+        Task<UiPrintResult> printing;
+        try
+        {
+            printing = UiPrintDialog.PrintAsync(_printHost, document, CreatePrintDialog, _rootWindow, GetPrintDialogPlacement(), initial);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _lastAction = "Could not print: " + exception.Message;
+            RefreshUi();
+            return;
+        }
+
+        _printing = true;
+        _lastAction = "Print";
+        RefreshUi();
+        printing.ContinueWith(task =>
+        {
+            Volatile.Write(ref _finishedPrint, task);
+            _host.RequestInvalidate();
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=1; Fingerprint=B8B8AB
+    // Broiler-Human:        PENDING
+    private UiPrintDialog CreatePrintDialog() =>
+        new StandardPrintDialog
+        {
+            PreferredSize = PrintDialogPreferredSize,
+            TitleFont = new BFontStyle("Segoe UI", 14, BFontWeight.SemiBold),
+            LabelFont = new BFontStyle("Segoe UI", 13),
+        };
+
+    /// <summary>Shows on the status line how the last print job ended.</summary>
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=1; Fingerprint=3C2BA5
+    // Broiler-Human:        PENDING
+    private void ReportFinishedPrint()
+    {
+        Task<UiPrintResult>? finished = Interlocked.Exchange(ref _finishedPrint, null);
+        if (finished is null)
+            return;
+
+        _printing = false;
+        UiPrintResult result = finished.IsFaulted
+            ? UiPrintResult.Failed(finished.Exception?.GetBaseException().Message ?? "the job failed")
+            : finished.IsCanceled ? UiPrintResult.Cancelled : finished.Result;
+        _lastAction = result.Outcome switch
+        {
+            UiPrintOutcome.Printed => result.PagesPrinted == 1
+                ? "Printed 1 page"
+                : "Printed " + result.PagesPrinted.ToString(CultureInfo.CurrentCulture) + " pages",
+            UiPrintOutcome.Cancelled => "Printing cancelled",
+            _ => "Could not print: " + (result.Message ?? "the printer refused the job"),
+        };
+        RefreshUi();
+    }
+
+    // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=DD8DFD
+    // Broiler-Human:        PENDING
+    private BRect GetPrintDialogPlacement()
+    {
+        BSize viewport = _host.ViewportSize;
+        double width = PrintDialogPreferredSize.Width;
+        double height = PrintDialogPreferredSize.Height;
+        double x = Math.Max(12, (viewport.Width - width) / 2);
+        double y = Math.Max(42, (viewport.Height - height) / 2);
+        return new BRect(x, y, Math.Min(width, Math.Max(420, viewport.Width - 24)), Math.Min(height, Math.Max(320, viewport.Height - 64)));
     }
 
     /// <summary>The Win32 virtual-key code for O, which the browser reports as keyCode too.</summary>
