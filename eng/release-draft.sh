@@ -38,6 +38,11 @@ with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as z:
         for name in sorted(files):
             path = os.path.join(directory, name)
             z.write(path, os.path.relpath(path, source).replace(os.sep, '/'))
+    for license_name in ('LICENSE', 'LICENSE.md', 'LICENSE.txt'):
+        if os.path.isfile(license_name):
+            if 'LICENSE' not in z.namelist():
+                z.write(license_name, 'LICENSE')
+            break
 PY
   echo "$zip"
 }
@@ -64,7 +69,9 @@ already have the .NET 10 runtime; keep its files together. The executables are n
 code-signed, so Windows SmartScreen may ask before the first start.
 EOF
 
-gh release create "$tag" "$self_contained" "$framework_dependent" \
+"$python" eng/write-component-manifest.py --directory "$out" --product plate --version "$version" --repository Broiler-Platform/Broiler.Plate --tag "$tag" --commit "$(git rev-parse HEAD)" --self-contained-mode native-aot
+
+gh release create "$tag" "$self_contained" "$framework_dependent" "$out/component-release.json" "$out/SHA256SUMS.txt" \
   --verify-tag \
   --draft \
   --prerelease \
