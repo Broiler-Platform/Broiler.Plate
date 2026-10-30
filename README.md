@@ -4,7 +4,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 Broiler Plate is the viewer of the [Broiler](https://github.com/Broiler-Platform/Broiler)
-managed-code application stack for .NET. It opens a file and shows it. Nothing else.
+managed-code application stack for .NET. It opens files and browses folders as a thumbnail gallery.
 
 Where [Broiler.Writer](https://github.com/Broiler-Platform/Broiler.Writer) is the word
 processor, this is the read-only half of the same machinery: the same document codecs, the
@@ -73,6 +73,22 @@ a head by being someone else's transitive reference — see `CreateFileFormats` 
 [`Program.cs`](src/Broiler.Plate.Windows/Program.cs).
 
 ## How big it is drawn
+
+**File > Open folder...** opens a folder picker. Browse subfolders or enter a path,
+then choose **Open folder** to show its immediate contents in a thumbnail gallery.
+Images get previews; folders, documents, unsupported files, and images that cannot
+be decoded appear as named tiles. An empty folder shows an empty-state message.
+
+Click a tile to open it, or use the arrow keys and Enter. The mouse wheel, Page Up,
+Page Down, Home, and End browse longer folders. **Up folder** navigates to the parent;
+after opening a file, **Back to gallery** restores the folder and scroll position.
+**File > Close** closes the file and gallery. Thumbnails are decoded in the background
+for visible tiles. Renderer images are released when they leave the view, while
+generated thumbnails are reused from an in-memory cache across scrolling and folder
+navigation. The cache keeps up to 256 thumbnails or 32 MiB, evicts the least recently
+used entries, and checks file size and modification time before reusing a preview.
+It is cleared when the app closes. Files over 32 MiB use a
+placeholder in the gallery and can still be opened individually.
 
 A toolbar under the menu carries the one command a viewer has and the controls for how large
 what it opened is drawn: **Open**, then **−**, a picker and **+**. Everything else the shell

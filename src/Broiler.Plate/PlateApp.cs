@@ -56,8 +56,7 @@ using Broiler.UI.Window.Standard;
 namespace Broiler.Plate;
 
 /// <summary>
-/// Broiler Plate: a viewer. It opens one file at a time and shows it, and that
-/// is the whole of it.
+/// Broiler Plate: a file viewer with a thumbnail gallery for browsing folders.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -92,6 +91,12 @@ internal sealed class PlateApp : IDisposable
     private readonly StandardLabel _status;
     private readonly StandardRichEdit _documentView;
     private readonly StandardImageView _imageView;
+    private readonly PlateGallery _gallery;
+    private string? _galleryPath;
+    private StandardButton? _galleryButton;
+    private StandardButton? _upFolderButton;
+    private StandardButton? _zoomInButton;
+    private StandardButton? _zoomOutButton;
     private readonly PlateContent _content;
     private readonly PlateFileFormats _formats;
     private readonly DocumentCodecCatalog _documentCatalog;
@@ -233,6 +238,13 @@ internal sealed class PlateApp : IDisposable
             PlaceholderBorder = PlatePalette.ViewBorder,
             Visibility = UiVisibility.Collapsed,
         };
+        _gallery = new PlateGallery(_host, entry =>
+        {
+            if (entry.IsDirectory)
+                OpenFolder(entry.Path);
+            else
+                OpenFile(entry.Path);
+        }) { Visibility = UiVisibility.Collapsed };
 
         _menu = CreateMenu();
         _toolbar = CreateToolbar();
@@ -241,6 +253,7 @@ internal sealed class PlateApp : IDisposable
             Text = "No file open",
             Font = new BFontStyle("Segoe UI", 20, BFontWeight.SemiBold),
             Foreground = PlatePalette.Title,
+            Trimming = UiTextTrimming.CharacterEllipsis,
         };
         _status = new StandardLabel
         {
@@ -258,7 +271,7 @@ internal sealed class PlateApp : IDisposable
             ActiveBorderColor = PlatePalette.Accent,
             BorderThickness = 1,
         };
-        _content = new PlateContent(_menu, _toolbar, _title, _documentView, _imageView, _status);
+        _content = new PlateContent(_menu, _toolbar, _title, _documentView, _imageView, _gallery, _status);
         _rootWindow.AddChild(_content);
 
         SeedWelcome();
@@ -294,6 +307,7 @@ internal sealed class PlateApp : IDisposable
 
     /// <summary>What is on display, for tests and for the status line.</summary>
     internal PlateViewKind CurrentView => _content.CurrentView;
+    internal PlateGallery Gallery => _gallery;
 
     /// <summary>The toolbar, so a test can check that nothing on it is drawn past its edge.</summary>
     internal StandardToolbar Toolbar => _toolbar;
@@ -324,6 +338,7 @@ internal sealed class PlateApp : IDisposable
     // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=8971D3
     // Broiler-Human:        PENDING
     internal bool CanPrint => _printHost is not null && _currentPath is not null && !_printing &&
+        _content.CurrentView != PlateViewKind.Gallery &&
         _filePrintPermission != PlatePrintPermission.Refused;
 
     // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=8; Fingerprint=C4A2FF
@@ -408,6 +423,62 @@ internal sealed class PlateApp : IDisposable
         }
     }
 
+    public bool OpenFolder(string path)
+    {
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            PlateGalleryEntry[] entries = PlateGallery.ReadFolder(fullPath);
+            // Commit only after listing succeeds, so a refused folder leaves the current view intact.
+            _gallery.SetEntries(entries);
+            _galleryPath = fullPath;
+            _lastDirectory = fullPath;
+            ReturnToGallery();
+            return true;
+        }
+        catch (Exception ex) when (IsFileOperationException(ex))
+        {
+            _lastAction = "Could not open folder: " + ex.Message;
+            RefreshUi();
+            return false;
+        }
+    }
+
+    private void ReturnToGallery()
+    {
+        if (_galleryPath is null)
+            return;
+        ReleaseImage();
+        _currentPath = null;
+        _documentView.SetPlainText(string.Empty);
+        _lastReadDiagnostics = Array.Empty<DocumentDiagnostic>();
+        _title.Text = _galleryPath;
+        ShowView(PlateViewKind.Gallery);
+        _session.SetFocus(_gallery);
+        _lastAction = "Opened folder " + _galleryPath;
+        RefreshUi();
+    }
+
+    private void OpenParentFolder()
+    {
+        if (_galleryPath is not null && Directory.GetParent(_galleryPath) is { } parent)
+            OpenFolder(parent.FullName);
+    }
+
+    private void ShowFolderDialog()
+    {
+        var dialog = new StandardDialog { Title = "Open folder", PreferredSize = FileDialogPreferredSize };
+        var picker = new PlateFolderDialog(dialog, GetDialogDirectory());
+        dialog.AddChild(picker);
+        dialog.ResultCompleted += (_, e) =>
+        {
+            if (e.Result.Kind == UiDialogResultKind.Accepted)
+                OpenFolder(e.Result.Value ?? picker.PathEdit.Text);
+        };
+        dialog.ShowModal(_rootWindow, GetDialogPlacement());
+        picker.Focus();
+    }
+
     // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=5602D0
     // Broiler-Falsified-If: a picture's renderer handle is still held after Dispose returns
     // Broiler-Human:        PENDING
@@ -424,24 +495,28 @@ internal sealed class PlateApp : IDisposable
     {
         var dispatcher = new StandardCommandDispatcher();
         dispatcher.Add(new StandardCommand("file.open", ShowOpenDialog));
-        dispatcher.Add(new StandardCommand("file.close", CloseFile, () => _currentPath is not null));
+        dispatcher.Add(new StandardCommand("file.open-folder", ShowFolderDialog));
+        dispatcher.Add(new StandardCommand("file.close", CloseFile, () => _currentPath is not null || _galleryPath is not null));
+        dispatcher.Add(new StandardCommand("view.gallery", ReturnToGallery, () => _galleryPath is not null));
         dispatcher.Add(new StandardCommand("file.print", ShowPrintDialog, () => CanPrint));
         dispatcher.Add(new StandardCommand("file.exit", _requestClose));
-        dispatcher.Add(new StandardCommand("view.zoom.in", () => StepZoom(PlateZoomStep.In)));
-        dispatcher.Add(new StandardCommand("view.zoom.out", () => StepZoom(PlateZoomStep.Out)));
-        dispatcher.Add(new StandardCommand("view.zoom.reset", () => StepZoom(PlateZoomStep.Reset)));
+        dispatcher.Add(new StandardCommand("view.zoom.in", () => StepZoom(PlateZoomStep.In), () => _content.CurrentView != PlateViewKind.Gallery));
+        dispatcher.Add(new StandardCommand("view.zoom.out", () => StepZoom(PlateZoomStep.Out), () => _content.CurrentView != PlateViewKind.Gallery));
+        dispatcher.Add(new StandardCommand("view.zoom.reset", () => StepZoom(PlateZoomStep.Reset), () => _content.CurrentView != PlateViewKind.Gallery));
         AddZoomLevelCommands(dispatcher);
         dispatcher.Add(new StandardCommand("help.notes", ShowNotes, () => _lastReadDiagnostics.Count > 0));
         dispatcher.Add(new StandardCommand("help.about", ShowAbout));
 
         var file = new UiMenuItem("file", "File") { AccessKey = 'F' };
         file.Children.Add(new UiMenuItem("open", "Open...") { CommandName = "file.open", AccessKey = 'O' });
+        file.Children.Add(new UiMenuItem("open-folder", "Open folder...") { CommandName = "file.open-folder", AccessKey = 'F' });
         _closeMenuItem = new UiMenuItem("close", "Close") { CommandName = "file.close", AccessKey = 'C' };
         file.Children.Add(_closeMenuItem);
         file.Children.Add(new UiMenuItem("print", "Print...") { CommandName = "file.print", AccessKey = 'P', Accelerator = "Ctrl+P" });
         file.Children.Add(new UiMenuItem("exit", "Exit") { CommandName = "file.exit", AccessKey = 'X' });
 
         var view = new UiMenuItem("view", "View") { AccessKey = 'V' };
+        view.Children.Add(new UiMenuItem("gallery", "Back to gallery") { CommandName = "view.gallery", AccessKey = 'G' });
         view.Children.Add(new UiMenuItem("zoom-in", "Zoom in") { CommandName = "view.zoom.in", AccessKey = 'I' });
         view.Children.Add(new UiMenuItem("zoom-out", "Zoom out") { CommandName = "view.zoom.out", AccessKey = 'O' });
         view.Children.Add(new UiMenuItem("zoom-reset", "Actual size") { CommandName = "view.zoom.reset", AccessKey = 'A' });
@@ -505,7 +580,7 @@ internal sealed class PlateApp : IDisposable
         foreach (double level in PlateZoom.Levels)
         {
             double zoom = level;
-            dispatcher.Add(new StandardCommand(ZoomCommandName(zoom), () => ApplyZoom(zoom)));
+            dispatcher.Add(new StandardCommand(ZoomCommandName(zoom), () => ApplyZoom(zoom), () => _content.CurrentView != PlateViewKind.Gallery));
         }
     }
 
@@ -585,6 +660,8 @@ internal sealed class PlateApp : IDisposable
         StandardButton openButton = ToolbarAction("Open", 56, ShowOpenDialog);
         StandardButton zoomOutButton = ToolbarAction("-", 30, () => StepZoom(PlateZoomStep.Out));
         StandardButton zoomInButton = ToolbarAction("+", 30, () => StepZoom(PlateZoomStep.In));
+        _zoomOutButton = zoomOutButton;
+        _zoomInButton = zoomInButton;
         StandardComboBox zoomCombo = CreateZoomCombo();
         _zoomCombo = zoomCombo;
 
@@ -592,6 +669,12 @@ internal sealed class PlateApp : IDisposable
         toolbar.AddChild(zoomOutButton);
         toolbar.AddChild(zoomCombo);
         toolbar.AddChild(zoomInButton);
+        _galleryButton = ToolbarAction("Back to gallery", 126, ReturnToGallery);
+        _galleryButton.Visibility = UiVisibility.Collapsed;
+        toolbar.AddChild(_galleryButton);
+        _upFolderButton = ToolbarAction("Up folder", 90, OpenParentFolder);
+        _upFolderButton.Visibility = UiVisibility.Collapsed;
+        toolbar.AddChild(_upFolderButton);
         toolbar.SetSeparatorBefore(zoomOutButton, true);
         return toolbar;
     }
@@ -715,6 +798,8 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private void ApplyZoom(double? zoom)
     {
+        if (_content.CurrentView == PlateViewKind.Gallery)
+            return;
         double? previous = Zoom;
         double? resolved;
         if (_content.CurrentView == PlateViewKind.Image)
@@ -787,6 +872,8 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private bool HandleZoomShortcut(UiInputEvent input)
     {
+        if (_content.CurrentView == PlateViewKind.Gallery || _session.ModalElement is not null)
+            return false;
         PlateZoomStep step = input.Kind switch
         {
             UiInputEventKind.KeyboardKey => PlateZoom.StepFor(
@@ -929,6 +1016,8 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private void CloseFile()
     {
+        _galleryPath = null;
+        _gallery.SetEntries(Array.Empty<PlateGalleryEntry>());
         ReleaseImage();
         _imageView.Image = BImageHandle.Invalid;
         _imageView.AltText = string.Empty;
@@ -968,7 +1057,12 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private void ShowAbout()
     {
-        _session.SetFocus(_content.CurrentView == PlateViewKind.Image ? _imageView : _documentView);
+        _session.SetFocus(_content.CurrentView switch
+        {
+            PlateViewKind.Image => _imageView,
+            PlateViewKind.Gallery => _gallery,
+            _ => _documentView,
+        });
         PlateAbout.Show(_rootWindow, _host.ViewportSize, typeof(PlateApp).Assembly);
     }
 
@@ -986,6 +1080,7 @@ internal sealed class PlateApp : IDisposable
             "Broiler Plate\n" +
             "A viewer for the formats the Broiler platform reads.\n" +
             "Choose File > Open, or press Ctrl+O, to open a document or a graphic. " +
+            "Choose File > Open folder to browse a thumbnail gallery. " +
             "Documents are drawn through Broiler.Documents and Broiler.UI; graphics are decoded by " +
             "the image codecs this build was composed with.");
         _documentView.Selection = RichTextRange.Caret(RichTextDocument.Start);
@@ -1196,6 +1291,8 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private void ShowView(PlateViewKind view)
     {
+        if (view != PlateViewKind.Gallery)
+            _gallery.ClearThumbnails();
         _content.Show(view);
         SyncZoomChoices();
     }
@@ -1342,13 +1439,27 @@ internal sealed class PlateApp : IDisposable
     private void RefreshUi()
     {
         if (_closeMenuItem is not null)
-            _closeMenuItem.IsEnabled = _currentPath is not null;
+            _closeMenuItem.IsEnabled = _currentPath is not null || _galleryPath is not null;
         if (_notesMenuItem is not null)
             _notesMenuItem.IsEnabled = _lastReadDiagnostics.Count > 0;
 
         double? zoom = Zoom;
         foreach ((UiMenuItem item, double? level) in _zoomMenuItems)
-            item.IsChecked = PlateZoom.SameChoice(level, zoom);
+        {
+            item.IsChecked = _content.CurrentView != PlateViewKind.Gallery && PlateZoom.SameChoice(level, zoom);
+            item.IsEnabled = _content.CurrentView != PlateViewKind.Gallery;
+        }
+        bool canZoom = _content.CurrentView != PlateViewKind.Gallery;
+        if (_zoomCombo is not null) _zoomCombo.IsEnabled = canZoom;
+        if (_zoomInButton is not null) _zoomInButton.IsEnabled = canZoom;
+        if (_zoomOutButton is not null) _zoomOutButton.IsEnabled = canZoom;
+        if (_galleryButton is not null)
+            _galleryButton.Visibility = _galleryPath is not null && canZoom ? UiVisibility.Visible : UiVisibility.Collapsed;
+        if (_upFolderButton is not null)
+        {
+            _upFolderButton.Visibility = canZoom ? UiVisibility.Collapsed : UiVisibility.Visible;
+            _upFolderButton.IsEnabled = _galleryPath is not null && Directory.GetParent(_galleryPath) is not null;
+        }
         if (_fitMenuItem is not null)
             _fitMenuItem.IsEnabled = _content.CurrentView == PlateViewKind.Image;
 
@@ -1398,6 +1509,9 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private string BuildStatus()
     {
+        if (_content.CurrentView == PlateViewKind.Gallery)
+            return "Gallery | " + _gallery.Entries.Count.ToString(CultureInfo.InvariantCulture) +
+                " items | Click a tile to open; use the wheel or arrow keys to browse | " + _lastAction;
         if (_currentPath is null)
             return "No file open | " + _lastAction;
 
@@ -1492,6 +1606,7 @@ internal sealed class PlateApp : IDisposable
         private readonly StandardLabel _title;
         private readonly StandardRichEdit _documentView;
         private readonly StandardImageView _imageView;
+        private readonly PlateGallery _gallery;
         private readonly StandardLabel _status;
 
         /// <summary>
@@ -1512,6 +1627,7 @@ internal sealed class PlateApp : IDisposable
             StandardLabel title,
             StandardRichEdit documentView,
             StandardImageView imageView,
+            PlateGallery gallery,
             StandardLabel status)
         {
             _menu = menu;
@@ -1519,6 +1635,7 @@ internal sealed class PlateApp : IDisposable
             _title = title;
             _documentView = documentView;
             _imageView = imageView;
+            _gallery = gallery;
             _status = status;
 
             AddChild(_menu);
@@ -1526,6 +1643,7 @@ internal sealed class PlateApp : IDisposable
             AddChild(_title);
             AddChild(_documentView);
             AddChild(_imageView);
+            AddChild(_gallery);
             AddChild(_status);
         }
 
@@ -1585,6 +1703,7 @@ internal sealed class PlateApp : IDisposable
             CurrentView = view;
             _documentView.Visibility = view == PlateViewKind.Document ? UiVisibility.Visible : UiVisibility.Collapsed;
             _imageView.Visibility = view == PlateViewKind.Image ? UiVisibility.Visible : UiVisibility.Collapsed;
+            _gallery.Visibility = view == PlateViewKind.Gallery ? UiVisibility.Visible : UiVisibility.Collapsed;
             Invalidate(UiInvalidationKind.Measure | UiInvalidationKind.Arrange | UiInvalidationKind.Render);
         }
 
@@ -1603,6 +1722,8 @@ internal sealed class PlateApp : IDisposable
             _title.Measure(new BSize(contentWidth, double.PositiveInfinity));
             if (CurrentView == PlateViewKind.Document)
                 _documentView.Measure(new BSize(contentWidth, viewHeight));
+            else if (CurrentView == PlateViewKind.Gallery)
+                _gallery.Measure(new BSize(contentWidth, viewHeight));
             else
                 _imageView.Measure(new BSize(contentWidth, viewHeight));
             _status.Measure(new BSize(contentWidth, StatusHeight));
@@ -1633,6 +1754,8 @@ internal sealed class PlateApp : IDisposable
             _viewArea = new BRect(x, y, width, viewHeight);
             if (CurrentView == PlateViewKind.Document)
                 _documentView.Arrange(_viewArea);
+            else if (CurrentView == PlateViewKind.Gallery)
+                _gallery.Arrange(_viewArea);
             else
                 ArrangeImage();
 
@@ -1720,6 +1843,8 @@ internal sealed class PlateApp : IDisposable
             _title.Render(context);
             if (CurrentView == PlateViewKind.Image)
                 RenderImage(context);
+            else if (CurrentView == PlateViewKind.Gallery)
+                _gallery.Render(context);
             else
                 _documentView.Render(context);
             _status.Render(context);
@@ -1751,4 +1876,5 @@ internal enum PlateViewKind
 {
     Document,
     Image,
+    Gallery,
 }
