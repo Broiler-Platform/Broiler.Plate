@@ -1,26 +1,26 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <BroilerDocumentsVersion>0.1.0-preview.25</BroilerDocumentsVersion>
-    <BroilerGraphicsVersion>0.1.0-preview.12</BroilerGraphicsVersion>
+    <BroilerDocumentsVersion>0.1.0-preview.28</BroilerDocumentsVersion>
+    <BroilerGraphicsVersion>0.1.0-preview.14</BroilerGraphicsVersion>
     <!-- Printing: the page model is in Broiler.Graphics 0.1.0-preview.13, the backends unchanged. -->
-    <BroilerGraphicsCoreVersion>0.1.0-preview.13</BroilerGraphicsCoreVersion>
-    <BroilerInputVersion>0.1.0-preview.6</BroilerInputVersion>
+    <BroilerGraphicsCoreVersion>0.1.0-preview.14</BroilerGraphicsCoreVersion>
+    <BroilerInputVersion>0.1.0-preview.7</BroilerInputVersion>
     <BroilerHostingVersion>0.1.0-preview.10</BroilerHostingVersion>
-    <BroilerMediaVersion>0.1.0-preview.15</BroilerMediaVersion>
-    <BroilerUiVersion>0.1.0-preview.22</BroilerUiVersion>
+    <BroilerMediaVersion>0.1.0-preview.16</BroilerMediaVersion>
+    <BroilerUiVersion>0.1.0-preview.24</BroilerUiVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Broiler.Documents.Docx" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Documents.Html" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Documents.Markdown" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Documents.Model" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Documents.Pagination" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Documents.Pdf" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Documents.Pdf.Images" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Documents.Rtf" Version="$(BroilerDocumentsVersion)" />
-    <PackageVersion Include="Broiler.Graphics" Version="$(BroilerGraphicsCoreVersion)" />
-    <PackageVersion Include="Broiler.Graphics.Windows" Version="$(BroilerGraphicsVersion)" />
+    <PackageVersion Include="Broiler.Documents.Docx" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Html" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Markdown" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Model" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Pagination" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Pdf" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Pdf.Images" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Documents.Rtf" Version="0.1.0-preview.31" />
+    <PackageVersion Include="Broiler.Graphics" Version="0.1.0-preview.15" />
+    <PackageVersion Include="Broiler.Graphics.Windows" Version="0.1.0-preview.15" />
     <PackageVersion Include="Broiler.Hosting.Windows" Version="$(BroilerHostingVersion)" />
     <PackageVersion Include="Broiler.Input.Keyboard" Version="$(BroilerInputVersion)" />
     <PackageVersion Include="Broiler.Media.Image.Managed" Version="$(BroilerMediaVersion)" />
@@ -35,8 +35,8 @@
     <PackageVersion Include="Broiler.UI.RichEdit.Standard" Version="$(BroilerUiVersion)" />
     <PackageVersion Include="Broiler.UI.Toolbar.Standard" Version="$(BroilerUiVersion)" />
     <PackageVersion Include="Broiler.UI.Window.Standard" Version="$(BroilerUiVersion)" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageVersion Include="xunit" Version="2.5.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
   </ItemGroup>
 </Project>

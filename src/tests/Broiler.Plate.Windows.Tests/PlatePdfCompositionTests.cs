@@ -86,7 +86,8 @@ public sealed class PlatePdfCompositionTests
         Assert.Empty(ImagesIn(result.Document));
 
         DocumentDiagnostic skipped = Assert.Single(
-            result.Diagnostics.Where(d => d.Code == PdfDiagnosticCodes.FilterDctUnsupported));
+            result.Diagnostics,
+            d => d.Code == PdfDiagnosticCodes.FilterDctUnsupported);
         Assert.Contains("32x16 8bpc DeviceRGB DCTDecode", skipped.Message, StringComparison.Ordinal);
     }
 
