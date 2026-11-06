@@ -288,7 +288,7 @@ public sealed class PlateScanTests
             ScannerFormat format = options.PreferredFormat
                 ?? new ScannerFormat(ScannerSourceKind.Flatbed, 300, 300, ScannerPixelFormat.Rgba32);
             SetNegotiatedFormat(format);
-            RaiseProgress(0, 0.5, rgba.Length / 2);
+            RaiseProgressChanged(0, 0.5, rgba.Length / 2);
             var lease = new ScannerPageLease(
                 rgba,
                 width,
