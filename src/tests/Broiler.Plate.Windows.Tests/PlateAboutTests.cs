@@ -1,7 +1,17 @@
+// SPDX-FileCopyrightText: 2026 Broiler Platform contributors
+// SPDX-License-Identifier: Apache-2.0
+
+using System;
+using System.Linq;
 using System.Reflection;
 using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Imaging;
+using Broiler.Graphics.Rendering;
+using Broiler.Graphics.RenderList;
 using Broiler.Input;
 using Broiler.Input.Keyboard;
+using Broiler.Media;
+using Broiler.Media.Image.Managed;
 using Broiler.UI;
 using Broiler.UI.AboutDialog.Standard;
 using Broiler.UI.Dialog;
@@ -10,6 +20,12 @@ namespace Broiler.Plate.Windows.Tests;
 
 public sealed class PlateAboutTests
 {
+    static PlateAboutTests()
+    {
+        try { BImageCodecs.Use(new MediaCodecCatalog(ManagedImageCodecs.CreateCodecs())); }
+        catch (InvalidOperationException) { }
+    }
+
     [Theory]
     [InlineData(1200, 800, "Enter", UiDialogResultKind.Accepted)]
     [InlineData(1200, 800, "Escape", UiDialogResultKind.Cancelled)]
@@ -58,5 +74,30 @@ public sealed class PlateAboutTests
         using var reopened = Assert.IsType<StandardAboutDialog>(app.Session.FocusedElement);
         Assert.NotSame(dialog, reopened);
         Assert.True(reopened.Cancel());
+    }
+
+    [Fact]
+    public void About_Dialog_Displays_Artwork_And_Navigates_Url()
+    {
+        using var renderer = new BImageRenderer();
+        using var host = new PlateUiHost(() => new BSize(1200, 800), () => 1, () => { }, _ => { }, getRenderer: () => renderer);
+        Uri? openedUrl = null;
+        using var app = new PlateApp(host, () => { }, openUrl: url => openedUrl = url);
+        app.RenderFrame();
+
+        Assert.True(app.Menu.CommandDispatcher!.TryExecute("help.about"));
+        using var dialog = Assert.IsType<StandardAboutDialog>(app.Session.FocusedElement);
+        app.RenderFrame();
+
+        Assert.NotNull(dialog.Picture);
+        Assert.True(dialog.Picture.HasIntrinsicSize);
+        Assert.Equal("https://broiler-platform.github.io/", dialog.ProductUrl!.AbsoluteUri);
+
+        BRenderCommand.DrawImage picture = Assert.Single(app.RenderFrame().Commands.OfType<BRenderCommand.DrawImage>());
+        Assert.Equal((double)dialog.Picture.PixelWidth!.Value / dialog.Picture.PixelHeight!.Value,
+            picture.Destination.Width / picture.Destination.Height, 6);
+
+        dialog.WebsiteButton.Click();
+        Assert.Equal(dialog.ProductUrl, openedUrl);
     }
 }

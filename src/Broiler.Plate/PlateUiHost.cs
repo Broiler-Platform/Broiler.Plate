@@ -17,6 +17,7 @@
 
 using System;
 using Broiler.Graphics;
+using Broiler.Graphics.Imaging;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Rendering;
 using Broiler.Graphics.RenderList;
@@ -145,7 +146,7 @@ internal class PlateUiHost : IUiHost, IUiClipboardHost, IUiTextInputHost, IUiIma
     // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=7D1AD8
     // Broiler-Falsified-If: a decoder exception other than OutOfMemoryException, such as InvalidDataException for a truncated PNG, escapes CreateImage instead of yielding BImageHandle.Invalid
     // Broiler-Human:        PENDING
-    public BImageHandle CreateImage(ReadOnlySpan<byte> encodedImage)
+    public virtual BImageHandle CreateImage(ReadOnlySpan<byte> encodedImage)
     {
         IBroilerRenderer? renderer = _getRenderer?.Invoke();
         if (renderer is null || encodedImage.IsEmpty)
@@ -166,7 +167,23 @@ internal class PlateUiHost : IUiHost, IUiClipboardHost, IUiTextInputHost, IUiIma
     // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=463A53
     // Broiler-Falsified-If: an invalid handle, such as BImageHandle.Invalid, is passed on to the renderer's ReleaseImage
     // Broiler-Human:        PENDING
-    public void ReleaseImage(BImageHandle image)
+    public virtual BImageHandle CreateImage(BPixelBuffer pixels)
+    {
+        IBroilerRenderer? renderer = _getRenderer?.Invoke();
+        if (renderer is null)
+            return BImageHandle.Invalid;
+
+        try
+        {
+            return renderer.CreateImage(pixels);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return BImageHandle.Invalid;
+        }
+    }
+
+    public virtual void ReleaseImage(BImageHandle image)
     {
         if (!image.IsValid)
             return;

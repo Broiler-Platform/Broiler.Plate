@@ -26,6 +26,7 @@ using Broiler.Graphics.Windowing;
 using Broiler.Graphics.Windows;
 using Broiler.Hosting.Windows;
 using Broiler.Input.Keyboard;
+using Broiler.Input.Scanner.Windows;
 using Broiler.UI;
 using Broiler.UI.Standard;
 
@@ -38,12 +39,15 @@ namespace Broiler.Plate;
 [SupportedOSPlatform("windows7.0")]
 internal sealed class PlateWindow : Direct2DWindow
 {
+    private const int AppIconPixels = 64;
+
     private readonly PlateWindowsUiHost _host;
     private readonly PlateApp _app;
 
     // Created in OnCreated: the Win32 clipboard is addressed by window handle,
     // and there is no handle until the window exists.
     private WindowsClipboard? _clipboard;
+    private PlateWindowIcon? _icon;
 
 #pragma warning disable CS0618
     private readonly StandardLegacyGraphicsInputAdapter _legacyInput = new("broiler-plate");
@@ -73,13 +77,24 @@ internal sealed class PlateWindow : Direct2DWindow
             ReadClipboardText,
             WriteClipboardText,
             getRenderer: () => Renderer);
-        _app = new PlateApp(_host, CloseNativeWindow, formats, new WindowsPrintHost(), PlatePdfPrintPermission.For);
+        _app = new PlateApp(_host, CloseNativeWindow, formats, new WindowsPrintHost(), PlatePdfPrintPermission.For, setTicking: SetTicking, scanHost: new PlateScanHost(new WindowsScannerProvider()));
     }
 
     // Broiler-AI:           Origin=AI; IP=None; Security=High; Resources=0; Fingerprint=3B311F
     // Broiler-Falsified-If: the clipboard is bound to a zero window handle, so SetClipboardData fails after EmptyClipboard has already cleared the system clipboard
     // Broiler-Human:        PENDING
-    protected override void OnCreated() => _clipboard = new WindowsClipboard(NativeHandle);
+    protected override void OnCreated()
+    {
+        _clipboard = new WindowsClipboard(NativeHandle);
+
+        // The taskbar, Alt+Tab, caption and its system menu show the window's icon,
+        // so the icon the build embeds (icon-96.ico) is handed to the window.
+        // When running under a host without the embedded resource, the fallback
+        // icon from Plate's assets is used.
+        _icon = PlateWindowIcon.TryAttach(NativeHandle);
+        if (_icon is null)
+            SetIcon(PlateApp.CreateAppIcon(AppIconPixels));
+    }
 
     /// <summary>
     /// Null rather than empty when there is no clipboard to read: the host
@@ -99,6 +114,18 @@ internal sealed class PlateWindow : Direct2DWindow
 
     // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=7; Fingerprint=322E78
     // Broiler-Human:        PENDING
+    private const int TooltipTickMilliseconds = 33;
+
+    private void SetTicking(bool ticking)
+    {
+        if (ticking)
+            StartAnimationTimer(TooltipTickMilliseconds);
+        else
+            StopAnimationTimer();
+    }
+
+    protected override void OnAnimationTick() => _app.AnimationTick();
+
     protected override BRenderList? BuildRenderList(BSize clientSize) => _app.RenderFrame();
 
     // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=C778FE
@@ -159,6 +186,8 @@ internal sealed class PlateWindow : Direct2DWindow
             // The app first: disposing its session closes any dialog that is still open, which
             // tears down the host window it broke out into, and releases the image the viewer
             // had uploaded. The host then only has to sweep up whatever survived that.
+            _icon?.Dispose();
+            _icon = null;
             _app.Dispose();
             _host.Dispose();
         }

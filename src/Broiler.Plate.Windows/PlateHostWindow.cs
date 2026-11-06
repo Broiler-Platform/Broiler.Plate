@@ -206,6 +206,8 @@ internal sealed class PlateHostWindow : Direct2DWindow, IUiHostWindow, IUiWindow
     // Broiler-Human:        PENDING
     public BImageHandle CreateImage(ReadOnlySpan<byte> encodedImage) => _host.CreateImage(encodedImage);
 
+    public BImageHandle CreateImage(BPixelBuffer pixels) => _host.CreateImage(pixels);
+
     // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=49004E
     // Broiler-Falsified-If: an invalid image handle is handed on to the renderer's ReleaseImage
     // Broiler-Human:        PENDING

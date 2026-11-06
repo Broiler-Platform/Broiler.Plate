@@ -25,6 +25,8 @@ using Broiler.Documents;
 using Broiler.Documents.Model;
 using Broiler.Documents.Pagination;
 using Broiler.Graphics;
+using Broiler.Graphics.Color;
+using Broiler.Graphics.Imaging;
 using Broiler.Graphics.Geometry;
 using Broiler.Graphics.Paging;
 using Broiler.Graphics.RenderList;
@@ -48,9 +50,12 @@ using Broiler.UI.Menu.Standard;
 using Broiler.UI.PrintDialog;
 using Broiler.UI.PrintDialog.Standard;
 using Broiler.UI.RichEdit.Standard;
+using Broiler.UI.ScanDialog;
+using Broiler.UI.ScanDialog.Standard;
 using Broiler.UI.Standard;
 using Broiler.UI.Toolbar;
 using Broiler.UI.Toolbar.Standard;
+using Broiler.UI.Tooltip.Standard;
 using Broiler.UI.Window.Standard;
 
 namespace Broiler.Plate;
@@ -83,6 +88,9 @@ internal sealed class PlateApp : IDisposable
 {
     private readonly PlateUiHost _host;
     private readonly Action _requestClose;
+    private readonly Action<Uri>? _openUrl;
+    private readonly Action? _requestOpenFile;
+    private readonly Action? _requestOpenFolder;
     private readonly UiSession _session;
     private readonly StandardWindow _rootWindow;
     private readonly StandardMenu _menu;
@@ -92,11 +100,24 @@ internal sealed class PlateApp : IDisposable
     private readonly StandardRichEdit _documentView;
     private readonly StandardImageView _imageView;
     private readonly PlateGallery _gallery;
+    private readonly StandardTooltip _tooltip;
+    private readonly StandardTooltipController _tooltips;
+    private readonly Action<bool>? _setTicking;
+    private bool _isTicking;
     private string? _galleryPath;
+    private StandardButton? _openButton;
+    private StandardButton? _openFolderButton;
+    private StandardButton? _closeButton;
+    private StandardButton? _printButton;
+    private StandardButton? _scanButton;
     private StandardButton? _galleryButton;
     private StandardButton? _upFolderButton;
     private StandardButton? _zoomInButton;
     private StandardButton? _zoomOutButton;
+    private StandardButton? _zoomResetButton;
+    private StandardButton? _zoomFitButton;
+    private StandardButton? _notesButton;
+    private StandardButton? _aboutButton;
     private readonly PlateContent _content;
     private readonly PlateFileFormats _formats;
     private readonly DocumentCodecCatalog _documentCatalog;
@@ -135,6 +156,7 @@ internal sealed class PlateApp : IDisposable
 
     private readonly IUiPrintHost? _printHost;
     private readonly Func<DocumentReadResult, PlatePrintPermission>? _printPermission;
+    private readonly IUiScanHost? _scanHost;
 
     /// <summary>What the file on display allows to be printed. A picture always may.</summary>
     private PlatePrintPermission _filePrintPermission = PlatePrintPermission.Allowed;
@@ -147,6 +169,18 @@ internal sealed class PlateApp : IDisposable
     /// line is the UI thread's, so the next frame picks it up.
     /// </summary>
     private Task<UiPrintResult>? _finishedPrint;
+
+    /// <summary>True from the moment the scan dialog opens until its job has completed.</summary>
+    private bool _scanning;
+
+    /// <summary>A finished scan job waiting to be reported on the UI thread.</summary>
+    private Task<UiScanResult>? _finishedScan;
+
+    /// <summary>Latest scan progress text reported from a background scan thread.</summary>
+    private string? _pendingScanStatus;
+
+    /// <summary>Pixels of a scanned page currently displayed in the image view, so it can also be printed.</summary>
+    private BPixelBuffer? _scannedPixels;
 
     /// <summary>
     /// The image currently on display, and the size it decoded to. The handle is
@@ -165,6 +199,7 @@ internal sealed class PlateApp : IDisposable
     // Broiler-AI:           Origin=AI; IP=None; Security=None; Resources=0; Fingerprint=17ACAF
     // Broiler-Human:        PENDING
     private static readonly BSize PrintDialogPreferredSize = new(760, 520);
+    private static readonly BSize ScanDialogPreferredSize = new(760, 520);
 
     /// <summary>
     /// The resolution a file that may only be printed at low quality is printed at: what ISO
@@ -200,11 +235,21 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Falsified-If: a PlateApp constructed without formats opens a PDF, although CreateDefault composes only the RTF, DOCX, HTML and Markdown codecs
     // Broiler-Human:        PENDING
     public PlateApp(PlateUiHost host, Action requestClose, PlateFileFormats? formats = null, IUiPrintHost? printHost = null,
-        Func<DocumentReadResult, PlatePrintPermission>? printPermission = null)
+        Func<DocumentReadResult, PlatePrintPermission>? printPermission = null,
+        Action<Uri>? openUrl = null,
+        Action<bool>? setTicking = null,
+        Action? requestOpenFile = null,
+        Action? requestOpenFolder = null,
+        IUiScanHost? scanHost = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
+        _openUrl = openUrl;
+        _setTicking = setTicking;
+        _requestOpenFile = requestOpenFile;
+        _requestOpenFolder = requestOpenFolder;
         _printHost = printHost;
         _printPermission = printPermission;
+        _scanHost = scanHost;
         _requestClose = requestClose ?? throw new ArgumentNullException(nameof(requestClose));
         _formats = formats ?? PlateFileFormats.CreateDefault();
         _documentCatalog = _formats.CreateOpenCatalog();
@@ -216,6 +261,7 @@ internal sealed class PlateApp : IDisposable
 
         _documentView = new StandardRichEdit
         {
+            ToolTipText = "Document view",
             IsReadOnly = true,
             PreferredSize = new BSize(760, 520),
             Font = new BFontStyle("Segoe UI", 17),
@@ -227,6 +273,7 @@ internal sealed class PlateApp : IDisposable
         };
         _imageView = new StandardImageView
         {
+            ToolTipText = "Document page view",
             // The box the picture is drawn in is computed by PlateContent, which
             // is also the box the picture is cropped to fill, so the view scales
             // what it is given into exactly the box it was given. See
@@ -250,6 +297,7 @@ internal sealed class PlateApp : IDisposable
         _toolbar = CreateToolbar();
         _title = new StandardLabel
         {
+            ToolTipText = "Document title",
             Text = "No file open",
             Font = new BFontStyle("Segoe UI", 20, BFontWeight.SemiBold),
             Foreground = PlatePalette.Title,
@@ -257,6 +305,7 @@ internal sealed class PlateApp : IDisposable
         };
         _status = new StandardLabel
         {
+            ToolTipText = "Document status and information",
             Text = "Ready",
             Font = new BFontStyle("Segoe UI", 13),
             Foreground = PlatePalette.Muted,
@@ -271,8 +320,19 @@ internal sealed class PlateApp : IDisposable
             ActiveBorderColor = PlatePalette.Accent,
             BorderThickness = 1,
         };
+        _tooltip = new StandardTooltip
+        {
+            Font = new BFontStyle("Segoe UI", 12),
+            Background = PlatePalette.MenuPopup,
+            Foreground = PlatePalette.Title,
+            BorderColor = PlatePalette.WindowBorder,
+        };
+        _tooltips = new StandardTooltipController(_tooltip);
+
         _content = new PlateContent(_menu, _toolbar, _title, _documentView, _imageView, _gallery, _status);
         _rootWindow.AddChild(_content);
+        _rootWindow.OpenOwnedWindow(_tooltip, new BRect(0, 0, 1, 1));
+        _tooltip.Deactivate();
 
         SeedWelcome();
         SyncZoomChoices();
@@ -289,7 +349,12 @@ internal sealed class PlateApp : IDisposable
         RefreshUi();
     }
 
+    internal static BPixelBuffer CreateAppIcon(int size) =>
+        PlateIcons.RenderAppIcon(size, PlatePalette.Page, PlatePalette.Accent, PlatePalette.Canvas);
+
     public UiSession Session => _session;
+
+    internal StandardWindow RootWindow => _rootWindow;
 
     internal StandardMenu Menu => _menu;
 
@@ -311,6 +376,20 @@ internal sealed class PlateApp : IDisposable
 
     /// <summary>The toolbar, so a test can check that nothing on it is drawn past its edge.</summary>
     internal StandardToolbar Toolbar => _toolbar;
+    internal StandardButton? OpenButton => _openButton;
+    internal StandardButton? OpenFolderButton => _openFolderButton;
+    internal StandardButton? CloseButton => _closeButton;
+    internal StandardButton? PrintButton => _printButton;
+    internal StandardButton? ScanButton => _scanButton;
+    internal StandardButton? GalleryButton => _galleryButton;
+    internal StandardButton? UpFolderButton => _upFolderButton;
+    internal StandardButton? ZoomOutButton => _zoomOutButton;
+    internal StandardComboBox? ZoomCombo => _zoomCombo;
+    internal StandardButton? ZoomInButton => _zoomInButton;
+    internal StandardButton? ZoomResetButton => _zoomResetButton;
+    internal StandardButton? ZoomFitButton => _zoomFitButton;
+    internal StandardButton? NotesButton => _notesButton;
+    internal StandardButton? AboutButton => _aboutButton;
 
     /// <summary>
     /// The zoom of the view on display, or null when a picture is being fitted to
@@ -326,6 +405,8 @@ internal sealed class PlateApp : IDisposable
     public BRenderList RenderFrame()
     {
         ReportFinishedPrint();
+        ReportScanProgress();
+        ReportFinishedScan();
         return _session.RenderFrame();
     }
 
@@ -334,12 +415,18 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     internal bool IsPrinting => _printing;
 
+    /// <summary>True while a scan dialog is open or its job is being acquired from the scanner.</summary>
+    internal bool IsScanning => _scanning;
+
     /// <summary>True when File, Print would print what is on display.</summary>
     // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=8971D3
     // Broiler-Human:        PENDING
     internal bool CanPrint => _printHost is not null && _currentPath is not null && !_printing &&
         _content.CurrentView != PlateViewKind.Gallery &&
         _filePrintPermission != PlatePrintPermission.Refused;
+
+    /// <summary>True when File, Scan can open the scan dialog.</summary>
+    internal bool CanScan => _scanHost is not null && !_scanning && !_printing;
 
     // Broiler-AI:           Origin=AI; IP=Low; Security=Medium; Resources=8; Fingerprint=C4A2FF
     // Broiler-Falsified-If: a key press answered as Ctrl+O or as a zoom shortcut is also delivered to the session, so the document view acts on the same key
@@ -359,6 +446,12 @@ internal sealed class PlateApp : IDisposable
             return;
         }
 
+        if (HandleScanShortcut(input))
+        {
+            _host.RequestInvalidate();
+            return;
+        }
+
         if (HandleZoomShortcut(input))
         {
             _host.RequestInvalidate();
@@ -367,6 +460,39 @@ internal sealed class PlateApp : IDisposable
 
         if (_session.DispatchInput(input))
             _host.RequestInvalidate();
+
+        UpdateTooltip(input);
+    }
+
+    public void AnimationTick()
+    {
+        if (_tooltips.Tick())
+            _host.RequestInvalidate();
+
+        SyncTicking();
+    }
+
+    public bool WantsTick => _tooltips.IsWaiting;
+
+    private void UpdateTooltip(UiInputEvent input)
+    {
+        bool changed = input.Kind == UiInputEventKind.PointerMove
+            ? _tooltips.PointerMoved(input.Position)
+            : _tooltips.Dismiss();
+
+        SyncTicking();
+        if (changed)
+            _host.RequestInvalidate();
+    }
+
+    private void SyncTicking()
+    {
+        bool wanted = _tooltips.IsWaiting;
+        if (wanted == _isTicking)
+            return;
+
+        _isTicking = wanted;
+        _setTicking?.Invoke(wanted);
     }
 
     // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=2C3B2F
@@ -382,6 +508,41 @@ internal sealed class PlateApp : IDisposable
     // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=C3CEFC
     // Broiler-Falsified-If: a file whose leading bytes carry a PNG, JPEG, GIF, BMP, TIFF or WebP signature is handed to a document codec before the image decoder sees it
     // Broiler-Human:        PENDING
+    public bool Open(string name, byte[] bytes) => Open(name, (ReadOnlySpan<byte>)bytes);
+
+    public bool Open(string name, ReadOnlySpan<byte> bytes)
+    {
+        try
+        {
+            if (bytes.IsEmpty)
+            {
+                _lastAction = "Could not open " + Path.GetFileName(name) + ": the file is empty.";
+                RefreshUi();
+                return false;
+            }
+
+            int sigLen = Math.Min(SignatureLength, bytes.Length);
+            byte[] signature = bytes[..sigLen].ToArray();
+
+            if (PlateImageFormats.ContentTypeForSignature(signature) is not null)
+                return OpenImageBytes(name, bytes);
+
+            if (OpenDocumentBytes(name, bytes.ToArray()))
+                return true;
+
+            if (PlateImageFormats.HasImageExtension(name))
+                return OpenImageBytes(name, bytes);
+
+            return false;
+        }
+        catch (Exception ex) when (IsFileOperationException(ex))
+        {
+            _lastAction = "Open failed: " + ex.Message;
+            RefreshUi();
+            return false;
+        }
+    }
+
     public bool OpenFile(string path)
     {
         try
@@ -467,6 +628,16 @@ internal sealed class PlateApp : IDisposable
 
     private void ShowFolderDialog()
     {
+        if (_requestOpenFolder is not null)
+        {
+            _requestOpenFolder();
+            return;
+        }
+        ShowFolderDialogInternal();
+    }
+
+    private void ShowFolderDialogInternal()
+    {
         var dialog = new StandardDialog { Title = "Open folder", PreferredSize = FileDialogPreferredSize };
         var picker = new PlateFolderDialog(dialog, GetDialogDirectory());
         dialog.AddChild(picker);
@@ -499,6 +670,7 @@ internal sealed class PlateApp : IDisposable
         dispatcher.Add(new StandardCommand("file.close", CloseFile, () => _currentPath is not null || _galleryPath is not null));
         dispatcher.Add(new StandardCommand("view.gallery", ReturnToGallery, () => _galleryPath is not null));
         dispatcher.Add(new StandardCommand("file.print", ShowPrintDialog, () => CanPrint));
+        dispatcher.Add(new StandardCommand("file.scan", ShowScanDialog, () => CanScan));
         dispatcher.Add(new StandardCommand("file.exit", _requestClose));
         dispatcher.Add(new StandardCommand("view.zoom.in", () => StepZoom(PlateZoomStep.In), () => _content.CurrentView != PlateViewKind.Gallery));
         dispatcher.Add(new StandardCommand("view.zoom.out", () => StepZoom(PlateZoomStep.Out), () => _content.CurrentView != PlateViewKind.Gallery));
@@ -513,6 +685,7 @@ internal sealed class PlateApp : IDisposable
         _closeMenuItem = new UiMenuItem("close", "Close") { CommandName = "file.close", AccessKey = 'C' };
         file.Children.Add(_closeMenuItem);
         file.Children.Add(new UiMenuItem("print", "Print...") { CommandName = "file.print", AccessKey = 'P', Accelerator = "Ctrl+P" });
+        file.Children.Add(new UiMenuItem("scan", "Scan...") { CommandName = "file.scan", AccessKey = 'S', Accelerator = "Ctrl+Shift+S" });
         file.Children.Add(new UiMenuItem("exit", "Exit") { CommandName = "file.exit", AccessKey = 'X' });
 
         var view = new UiMenuItem("view", "View") { AccessKey = 'V' };
@@ -639,15 +812,20 @@ internal sealed class PlateApp : IDisposable
     // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=8D70FD
     // Broiler-Falsified-If: the picker placed on the toolbar is not the one _zoomCombo holds, so zoom changes never reach it
     // Broiler-Human:        PENDING
+    private const double IconButtonExtent = 30;
+    private const double IconExtent = 16;
+
     private StandardToolbar CreateToolbar()
     {
         var toolbar = new StandardToolbar
         {
+            ToolTipText = "Document actions toolbar",
             Title = "Viewer toolbar",
             PreferredSize = new BSize(0, 42),
             Orientation = UiToolbarOrientation.Horizontal,
             Padding = 5,
-            Spacing = 4,
+            Spacing = 3,
+            GroupExtent = 9,
             Background = PlatePalette.ToolbarSurface,
             BorderColor = PlatePalette.MenuRule,
             SeparatorColor = PlatePalette.MenuRule,
@@ -657,40 +835,70 @@ internal sealed class PlateApp : IDisposable
             Font = new BFontStyle("Segoe UI", 15),
         };
 
-        StandardButton openButton = ToolbarAction("Open", 56, ShowOpenDialog);
-        StandardButton zoomOutButton = ToolbarAction("-", 30, () => StepZoom(PlateZoomStep.Out));
-        StandardButton zoomInButton = ToolbarAction("+", 30, () => StepZoom(PlateZoomStep.In));
-        _zoomOutButton = zoomOutButton;
-        _zoomInButton = zoomInButton;
-        StandardComboBox zoomCombo = CreateZoomCombo();
-        _zoomCombo = zoomCombo;
+        _openButton = ToolbarAction("Open", "Open... (Ctrl+O)", ShowOpenDialog, PlateIcons.OpenFile);
+        _openFolderButton = ToolbarAction("Open folder", "Open folder...", ShowFolderDialog, PlateIcons.OpenFolder);
+        _closeButton = ToolbarAction("Close", "Close file", CloseFile, PlateIcons.Close);
+        _printButton = ToolbarAction("Print", "Print... (Ctrl+P)", ShowPrintDialog, PlateIcons.Print);
+        _scanButton = ToolbarAction("Scan", "Scan... (Ctrl+Shift+S)", ShowScanDialog, PlateIcons.Scan);
 
-        toolbar.AddChild(openButton);
-        toolbar.AddChild(zoomOutButton);
-        toolbar.AddChild(zoomCombo);
-        toolbar.AddChild(zoomInButton);
-        _galleryButton = ToolbarAction("Back to gallery", 126, ReturnToGallery);
+        _galleryButton = ToolbarAction("Gallery", "Back to gallery", ReturnToGallery, PlateIcons.Gallery);
         _galleryButton.Visibility = UiVisibility.Collapsed;
-        toolbar.AddChild(_galleryButton);
-        _upFolderButton = ToolbarAction("Up folder", 90, OpenParentFolder);
+
+        _upFolderButton = ToolbarAction("Up", "Up folder", OpenParentFolder, PlateIcons.UpFolder);
         _upFolderButton.Visibility = UiVisibility.Collapsed;
+
+        _zoomOutButton = ToolbarAction("Zoom out", "Zoom out (Ctrl+minus)", () => StepZoom(PlateZoomStep.Out), PlateIcons.ZoomOut);
+        _zoomCombo = CreateZoomCombo();
+        _zoomInButton = ToolbarAction("Zoom in", "Zoom in (Ctrl+plus)", () => StepZoom(PlateZoomStep.In), PlateIcons.ZoomIn);
+        _zoomResetButton = ToolbarAction("Actual size", "Actual size (Ctrl+0)", () => StepZoom(PlateZoomStep.Reset), PlateIcons.ZoomReset);
+        _zoomFitButton = ToolbarAction("Fit to window", "Fit to window", () => ApplyZoom(null), PlateIcons.ZoomFit);
+
+        _notesButton = ToolbarAction("Notes", "Notes for this file...", ShowNotes, PlateIcons.Notes);
+        _aboutButton = ToolbarAction("About", "About Broiler Plate", ShowAbout, PlateIcons.About);
+
+        toolbar.AddChild(_openButton);
+        toolbar.AddChild(_openFolderButton);
+        toolbar.AddChild(_closeButton);
+        toolbar.AddChild(_printButton);
+        toolbar.AddChild(_scanButton);
+
+        toolbar.AddChild(_galleryButton);
         toolbar.AddChild(_upFolderButton);
-        toolbar.SetSeparatorBefore(zoomOutButton, true);
+
+        toolbar.AddChild(_zoomOutButton);
+        toolbar.AddChild(_zoomCombo);
+        toolbar.AddChild(_zoomInButton);
+        toolbar.AddChild(_zoomResetButton);
+        toolbar.AddChild(_zoomFitButton);
+
+        toolbar.AddChild(_notesButton);
+        toolbar.AddChild(_aboutButton);
+
+        toolbar.SetBreakBefore(_galleryButton, UiToolbarBreak.Gap);
+        toolbar.SetBreakBefore(_zoomOutButton, UiToolbarBreak.Gap);
+        toolbar.SetBreakBefore(_notesButton, UiToolbarBreak.Gap);
         return toolbar;
     }
 
     // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=A2DD22
     // Broiler-Falsified-If: a toolbar button's action runs without the status line and zoom picker being refreshed afterwards
     // Broiler-Human:        PENDING
-    private StandardButton ToolbarAction(string text, double width, Action action)
+    private StandardButton ToolbarAction(
+        string text,
+        string tip,
+        Action action,
+        Action<BRenderList, BRect, BColor>? icon)
     {
         var button = new StandardButton
         {
             Text = text,
-            PreferredSize = new BSize(width, 30),
+            ToolTipText = tip,
+            PreferredSize = new BSize(IconButtonExtent, IconButtonExtent),
             Font = new BFontStyle("Segoe UI", 13),
-            PaddingX = 8,
+            PaddingX = 6,
             PaddingY = 5,
+            IconPainter = icon,
+            IconExtent = IconExtent,
             Background = PlatePalette.ToolbarButton,
             Foreground = PlatePalette.Title,
             BorderColor = PlatePalette.ToolbarButtonBorder,
@@ -720,6 +928,7 @@ internal sealed class PlateApp : IDisposable
     {
         var combo = new StandardComboBox
         {
+            ToolTipText = "Zoom level",
             PreferredSize = new BSize(74, 30),
             MaxDropDownItems = PlateZoom.Levels.Count + 1,
             ItemHeight = 26,
@@ -899,6 +1108,18 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private void ShowOpenDialog()
     {
+        if (_requestOpenFile is not null)
+        {
+            _requestOpenFile();
+            _lastAction = "Open file";
+            RefreshUi();
+            return;
+        }
+        ShowOpenDialogInternal();
+    }
+
+    private void ShowOpenDialogInternal()
+    {
         var dialog = new StandardFileDialog
         {
             Mode = UiFileDialogMode.Open,
@@ -967,13 +1188,47 @@ internal sealed class PlateApp : IDisposable
     // Broiler-AI:           Origin=AI; IP=Low; Security=High; Resources=8; Fingerprint=61CFD5
     // Broiler-Falsified-If: a file of several hundred megabytes that carries an image signature is read whole into memory by File.ReadAllBytes before any decoder limit applies
     // Broiler-Human:        PENDING
+    private bool OpenDocumentBytes(string name, ReadOnlyMemory<byte> bytes)
+    {
+        using DocumentInput input = DocumentInput.FromBytes(bytes);
+        DocumentCodecSelection selection = _documentCatalog.SelectAndRead(
+            input,
+            hints: new DocumentSourceHints(fileName: name));
+
+        _lastReadDiagnostics = selection.Result.Diagnostics;
+        _lastReadFileName = Path.GetFileName(name);
+
+        if (!MayReplaceView(selection.Result))
+        {
+            _lastAction = DescribeRefusedOpen(Path.GetFileName(name), selection);
+            RefreshUi();
+            return false;
+        }
+
+        ReleaseImage();
+        _filePrintPermission = _printPermission?.Invoke(selection.Result) ?? PlatePrintPermission.Allowed;
+        _documentView.Document = selection.Result.Document;
+        _documentView.Selection = RichTextRange.Caret(RichTextDocument.Start);
+        ShowView(PlateViewKind.Document);
+        AdoptPath(name);
+        _lastAction = DescribeOpen(Path.GetFileName(name), selection.Result);
+        _session.SetFocus(_documentView);
+        RefreshUi();
+        return true;
+    }
+
     private bool OpenImage(string fullPath)
     {
         byte[] bytes = File.ReadAllBytes(fullPath);
+        return OpenImageBytes(fullPath, bytes);
+    }
+
+    private bool OpenImageBytes(string name, ReadOnlySpan<byte> bytes)
+    {
         BImageHandle handle = _host.CreateImage(bytes);
         if (!handle.IsValid)
         {
-            _lastAction = "Could not open " + Path.GetFileName(fullPath) +
+            _lastAction = "Could not open " + Path.GetFileName(name) +
                 ": no installed image codec decoded it. What is on display is unchanged.";
             RefreshUi();
             return false;
@@ -988,7 +1243,7 @@ internal sealed class PlateApp : IDisposable
             : handle.PixelSize;
         _filePrintPermission = PlatePrintPermission.Allowed;
         _imageView.Image = handle;
-        _imageView.AltText = Path.GetFileNameWithoutExtension(fullPath);
+        _imageView.AltText = Path.GetFileNameWithoutExtension(name);
 
         // Every picture arrives fitted. A document states the size it wants to be
         // read at and the ladder is read against that, so a zoom carries from one
@@ -1003,10 +1258,10 @@ internal sealed class PlateApp : IDisposable
         // in memory, and its notes would still answer the Help menu.
         _documentView.SetPlainText(string.Empty);
         _lastReadDiagnostics = Array.Empty<DocumentDiagnostic>();
-        _lastReadFileName = Path.GetFileName(fullPath);
+        _lastReadFileName = Path.GetFileName(name);
 
-        AdoptPath(fullPath);
-        _lastAction = "Opened " + Path.GetFileName(fullPath);
+        AdoptPath(name);
+        _lastAction = "Opened " + Path.GetFileName(name);
         RefreshUi();
         return true;
     }
@@ -1063,7 +1318,7 @@ internal sealed class PlateApp : IDisposable
             PlateViewKind.Gallery => _gallery,
             _ => _documentView,
         });
-        PlateAbout.Show(_rootWindow, _host.ViewportSize, typeof(PlateApp).Assembly);
+        PlateAbout.Show(_rootWindow, _host.ViewportSize, typeof(PlateApp).Assembly, _openUrl);
     }
 
     /// <summary>
@@ -1156,7 +1411,9 @@ internal sealed class PlateApp : IDisposable
         }
 
         IBPagedDocument document = _content.CurrentView == PlateViewKind.Image
-            ? new PlatePicturePrintDocument(_currentPath, _imagePixelSize)
+            ? (_scannedPixels is not null
+                ? new PlatePicturePrintDocument(_title.Text, _scannedPixels)
+                : new PlatePicturePrintDocument(_currentPath, _imagePixelSize))
             : new RichTextPagedDocument(_documentView.Document, _lastReadFileName,
                 new DocumentPaginator(DocumentPaginator.CreateDefaultSettings() with { DefaultFontFamily = _documentView.Font.FamilyName }));
         UiPrintSettings? initial = _filePrintPermission == PlatePrintPermission.LowResolution
@@ -1231,6 +1488,159 @@ internal sealed class PlateApp : IDisposable
         return new BRect(x, y, Math.Min(width, Math.Max(420, viewport.Width - 24)), Math.Min(height, Math.Max(320, viewport.Height - 64)));
     }
 
+    private const int VirtualKeyS = 0x53;
+
+    private bool HandleScanShortcut(UiInputEvent input)
+    {
+        if (input.Kind != UiInputEventKind.KeyboardKey ||
+            input.KeyTransition != KeyboardKeyTransition.Down ||
+            (input.KeyModifiers & (KeyboardModifierState.Control | KeyboardModifierState.Shift | KeyboardModifierState.Alt)) != (KeyboardModifierState.Control | KeyboardModifierState.Shift))
+        {
+            return false;
+        }
+
+        if (!IsKey(input, VirtualKeyS, "S"))
+            return false;
+
+        ShowScanDialog();
+        return true;
+    }
+
+    /// <summary>
+    /// Opens the scan dialog (or the platform's own scan UI) and displays the scanned page in the
+    /// viewer when the scan completes.
+    /// </summary>
+    private void ShowScanDialog()
+    {
+        if (_scanning || _printing)
+            return;
+
+        if (_scanHost is null)
+        {
+            _lastAction = "Scanning is not available here";
+            RefreshUi();
+            return;
+        }
+
+        Task<UiScanResult> scanning;
+        try
+        {
+            scanning = UiScanDialog.ScanAsync(
+                _scanHost,
+                CreateScanDialog,
+                _rootWindow,
+                GetScanDialogPlacement(),
+                progress: p =>
+                {
+                    int percent = (int)Math.Round(Math.Clamp(p.Fraction, 0.0, 1.0) * 100.0);
+                    string status = percent > 0
+                        ? "Scanning (" + percent.ToString(CultureInfo.CurrentCulture) + "%)..."
+                        : "Scanning...";
+                    Volatile.Write(ref _pendingScanStatus, status);
+                    _host.RequestInvalidate();
+                });
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _lastAction = "Could not scan: " + exception.Message;
+            RefreshUi();
+            return;
+        }
+
+        _scanning = true;
+        _lastAction = "Scan";
+        RefreshUi();
+        scanning.ContinueWith(task =>
+        {
+            Volatile.Write(ref _finishedScan, task);
+            _host.RequestInvalidate();
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    private UiScanDialog CreateScanDialog() =>
+        new StandardScanDialog
+        {
+            PreferredSize = ScanDialogPreferredSize,
+            TitleFont = new BFontStyle("Segoe UI", 14, BFontWeight.SemiBold),
+            LabelFont = new BFontStyle("Segoe UI", 13),
+        };
+
+    private void ReportScanProgress()
+    {
+        string? status = Interlocked.Exchange(ref _pendingScanStatus, null);
+        if (status is null || !_scanning)
+            return;
+
+        _lastAction = status;
+        _status.Text = BuildStatus();
+    }
+
+    private void ReportFinishedScan()
+    {
+        Task<UiScanResult>? finished = Interlocked.Exchange(ref _finishedScan, null);
+        if (finished is null)
+            return;
+
+        Interlocked.Exchange(ref _pendingScanStatus, null);
+        _scanning = false;
+        UiScanResult result = finished.IsFaulted
+            ? UiScanResult.Failed(finished.Exception?.GetBaseException().Message ?? "the scan job failed")
+            : finished.IsCanceled ? UiScanResult.Cancelled : finished.Result;
+
+        if (result.Outcome == UiScanOutcome.Scanned &&
+            PlateScanHost.TryExtractFirstPagePixels(result.Pages, out BPixelBuffer pixels))
+        {
+            OpenScannedPage(pixels, result.PagesScanned);
+            return;
+        }
+
+        _lastAction = result.Outcome switch
+        {
+            UiScanOutcome.Cancelled => "Scanning cancelled",
+            _ => "Could not scan: " + (result.Message ?? "the scanner refused the job"),
+        };
+        RefreshUi();
+    }
+
+    private void OpenScannedPage(BPixelBuffer pixels, int pagesScanned)
+    {
+        BImageHandle handle = _host.CreateImage(pixels);
+        ReleaseImage();
+        _scannedPixels = pixels;
+        _imageHandle = handle;
+        _imagePixelSize = new BSize(pixels.Width, pixels.Height);
+        _filePrintPermission = PlatePrintPermission.Allowed;
+        _imageView.Image = handle;
+        _imageView.AltText = "Scanned page";
+        _imageZoom = null;
+        _content.ImageZoom = null;
+        _content.ImagePixelSize = _imagePixelSize;
+        ShowView(PlateViewKind.Image);
+
+        _documentView.SetPlainText(string.Empty);
+        _lastReadDiagnostics = Array.Empty<DocumentDiagnostic>();
+        string title = pagesScanned <= 1
+            ? "Scanned page"
+            : "Scanned page (1 of " + pagesScanned.ToString(CultureInfo.CurrentCulture) + ")";
+        _lastReadFileName = title;
+        _currentPath = title;
+        _title.Text = title;
+        _lastAction = pagesScanned == 1
+            ? "Scanned 1 page"
+            : "Scanned " + pagesScanned.ToString(CultureInfo.CurrentCulture) + " pages";
+        RefreshUi();
+    }
+
+    private BRect GetScanDialogPlacement()
+    {
+        BSize viewport = _host.ViewportSize;
+        double width = ScanDialogPreferredSize.Width;
+        double height = ScanDialogPreferredSize.Height;
+        double x = Math.Max(12, (viewport.Width - width) / 2);
+        double y = Math.Max(42, (viewport.Height - height) / 2);
+        return new BRect(x, y, Math.Min(width, Math.Max(420, viewport.Width - 24)), Math.Min(height, Math.Max(320, viewport.Height - 64)));
+    }
+
     /// <summary>The Win32 virtual-key code for O, which the browser reports as keyCode too.</summary>
     // Broiler-AI:           Origin=AI; IP=None; Security=Medium; Resources=0; Fingerprint=A53D55
     // Broiler-Falsified-If: VirtualKeyO is not the Win32 virtual-key code 0x4F for O, so Ctrl+O reported only by native code does not open the dialog
@@ -1271,8 +1681,13 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private void ReleaseImage()
     {
+        _scannedPixels = null;
         if (!_imageHandle.IsValid)
+        {
+            _imagePixelSize = BSize.Empty;
+            _content.ImagePixelSize = BSize.Empty;
             return;
+        }
 
         _imageView.Image = BImageHandle.Invalid;
         _host.ReleaseImage(_imageHandle);
@@ -1393,7 +1808,7 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Falsified-If: an exception a hostile file provokes while opening, such as OverflowException from a header field, is not matched and escapes OpenFile
     // Broiler-Human:        PENDING
     private static bool IsFileOperationException(Exception ex) =>
-        ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException;
+        ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or FormatException or InvalidDataException or OverflowException or IndexOutOfRangeException;
 
     // Broiler-AI:           Origin=AI; IP=None; Security=Low; Resources=0; Fingerprint=5DE95E
     // Broiler-Human:        PENDING
@@ -1438,10 +1853,19 @@ internal sealed class PlateApp : IDisposable
     // Broiler-Human:        PENDING
     private void RefreshUi()
     {
+        bool hasOpenTarget = _currentPath is not null || _galleryPath is not null;
         if (_closeMenuItem is not null)
-            _closeMenuItem.IsEnabled = _currentPath is not null || _galleryPath is not null;
+            _closeMenuItem.IsEnabled = hasOpenTarget;
+        if (_closeButton is not null)
+            _closeButton.IsEnabled = hasOpenTarget;
+        if (_printButton is not null)
+            _printButton.IsEnabled = CanPrint;
+        if (_scanButton is not null)
+            _scanButton.IsEnabled = CanScan;
         if (_notesMenuItem is not null)
             _notesMenuItem.IsEnabled = _lastReadDiagnostics.Count > 0;
+        if (_notesButton is not null)
+            _notesButton.IsEnabled = _lastReadDiagnostics.Count > 0;
 
         double? zoom = Zoom;
         foreach ((UiMenuItem item, double? level) in _zoomMenuItems)
@@ -1453,6 +1877,9 @@ internal sealed class PlateApp : IDisposable
         if (_zoomCombo is not null) _zoomCombo.IsEnabled = canZoom;
         if (_zoomInButton is not null) _zoomInButton.IsEnabled = canZoom;
         if (_zoomOutButton is not null) _zoomOutButton.IsEnabled = canZoom;
+        if (_zoomResetButton is not null) _zoomResetButton.IsEnabled = canZoom;
+        if (_zoomFitButton is not null) _zoomFitButton.IsEnabled = _content.CurrentView == PlateViewKind.Image;
+
         if (_galleryButton is not null)
             _galleryButton.Visibility = _galleryPath is not null && canZoom ? UiVisibility.Visible : UiVisibility.Collapsed;
         if (_upFolderButton is not null)

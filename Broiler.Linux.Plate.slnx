@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/Broiler.Plate.Linux/Broiler.Plate.Linux.csproj" />
+  <Project Path="src/Broiler.Plate/Broiler.Plate.Core.csproj" />
+</Solution>

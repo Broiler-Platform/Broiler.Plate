@@ -10,6 +10,7 @@
     <AssemblyName>Broiler.Plate.Windows</AssemblyName>
     <IsPackable>false</IsPackable>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationIcon>..\..\icon-96.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -38,6 +39,7 @@
     <PackageReference Include="Broiler.Graphics.Windows" />
     <!-- The Win32 clipboard and window sizing, shared with the other desktop applications. -->
     <PackageReference Include="Broiler.Hosting.Windows" />
+    <PackageReference Include="Broiler.Input.Scanner.Windows" />
     <PackageReference Include="Broiler.Media.Image.Managed" />
   </ItemGroup>
 

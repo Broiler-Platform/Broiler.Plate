@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Broiler.Plate.WebAssembly</RootNamespace>
+    <AssemblyName>Broiler.Plate.WebAssembly</AssemblyName>
+    <PublishTrimmed>true</PublishTrimmed>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <WasmEnvironmentVariable Include="BROILER_IMAGE_DECODE_THREADS" Value="1" />
+    <WasmEnvironmentVariable Include="BROILER_RASTER_THREADS" Value="1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Broiler.Graphics.WebAssembly" GeneratePathProperty="true" />
+    <PackageReference Include="Broiler.Hosting.WebAssembly" GeneratePathProperty="true" />
+    <PackageReference Include="Broiler.Documents.Pdf" />
+    <PackageReference Include="Broiler.Documents.Pdf.Images" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Broiler.Plate\Broiler.Plate.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <StaticWebAssetFingerprintPattern Include="MainJs" Pattern="main.js" Expression="#[.{fingerprint}]!" />
+  </ItemGroup>
+
+  <Import Project="BrowserPackageAssets.targets" />
+
+</Project>

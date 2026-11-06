@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>Broiler Plate — WebAssembly</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+            --host-bg: #f4f6f8;
+            --status-bg: #dbeafe;
+            --status-fg: #1d4ed8;
+        }
+        * { box-sizing: border-box; }
+        html, body, main { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+        body { background: var(--host-bg); }
+        .office-nav { height: 32px; padding: 5px 12px; background: #f8fafc; font-size: 14px; }
+        .office-nav a { color: #145cb3; }
+        main { height: calc(100% - 60px); }
+        #plate-operation { height: 28px; margin: 0; padding: 4px 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: #eff6ff; font-size: 13px; }
+        #plate-status {
+            position: fixed; z-index: 2; top: 48px; left: 50%; transform: translateX(-50%);
+            display: inline-flex; align-items: center; min-height: 34px;
+            padding: 7px 14px; border-radius: 999px; font-weight: 600;
+            background: var(--status-bg); color: var(--status-fg); box-shadow: 0 4px 16px rgba(15, 30, 50, .18);
+        }
+        #plate-status[hidden] { display: none; }
+        #plate-status[data-state="failed"] { background: #fee2e2; color: #991b1b; }
+        #plate-host {
+            position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--host-bg);
+        }
+        #plate-canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
+        #plate-canvas:focus-visible { box-shadow: inset 0 0 0 3px rgba(37, 99, 235, .45); }
+        #plate-text-input {
+            position: absolute; z-index: -1; opacity: .01; border: 0; padding: 0; margin: 0;
+            resize: none; overflow: hidden; color: transparent; background: transparent;
+            caret-color: transparent; white-space: pre; pointer-events: none;
+        }
+        #error-panel { position: fixed; z-index: 3; inset: auto 16px 16px; max-height: 40vh; overflow: auto; padding: 14px 16px; border-radius: 12px; border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; box-shadow: 0 8px 24px rgba(50, 15, 15, .18); }
+        #error { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .8rem; }
+    </style>
+</head>
+<body>
+<nav class="office-nav" aria-label="Office navigation"><a href="https://demo.broiler.app/">Return to Office</a> · <span id="plate-name">Broiler Plate</span></nav>
+<main>
+    <div id="plate-status" role="status">Loading Broiler Plate…</div>
+
+    <div id="plate-host">
+        <canvas id="plate-canvas" width="1280" height="800" tabindex="0" role="application"
+                aria-label="Broiler Plate viewer surface"></canvas>
+        <textarea id="plate-text-input" aria-label="Text editor" autocomplete="off"
+                  autocapitalize="off" spellcheck="false"></textarea>
+    </div>
+
+    <div id="error-panel" hidden>
+        <strong>Managed failure</strong>
+        <div id="error"></div>
+    </div>
+</main>
+<p id="plate-operation" role="status" aria-live="polite">Ready</p>
+
+<script type="importmap"></script>
+<script type="module" src="main#[.{fingerprint}].js"></script>
+</body>
+</html>

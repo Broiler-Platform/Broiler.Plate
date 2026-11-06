@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="..\..\Broiler.Plate.Linux\LinuxPlateOptions.cs" Link="LinuxPlateOptions.cs" />
   </ItemGroup>
 
 </Project>

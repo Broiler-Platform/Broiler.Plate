@@ -1,38 +1,31 @@
 // SPDX-FileCopyrightText: 2026 Broiler Platform contributors
 // SPDX-License-Identifier: Apache-2.0
-//
-// Broiler Code Assurance
-// ----------------------
-// Relevant units:   2
-// Annotated:        2/2
-// Exempt:           0
-// Human-reviewed:   0/2
-// IP risk:          Low
-// Security risk:    Low
-// Criteria:         2/0
-// Resource impact:  2/10 max
-// Unverified:       2
-//
-// GENERATED - DO NOT EDIT MANUALLY
 
 using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using Broiler.Graphics.Geometry;
+using Broiler.Graphics.Imaging;
 using Broiler.UI.AboutDialog.Standard;
 using Broiler.UI.Window;
 
 namespace Broiler.Plate;
 
-/// <summary>Composes the viewer's About dialog using the product assembly metadata.</summary>
-// Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=2; Fingerprint=1EC027
-// Broiler-Falsified-If: a viewport smaller than 32 units in either dimension gives the About dialog a negative width, height or origin
-// Broiler-Human:        PENDING
+/// <summary>Composes the viewer's About dialog using the product assembly metadata and embedded artwork.</summary>
 internal static class PlateAbout
 {
-    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=2; Fingerprint=F53C29
-    // Broiler-Falsified-If: a viewport smaller than 32 units in either dimension gives the About dialog a negative width, height or origin instead of zero
-    // Broiler-Human:        PENDING
-    public static void Show(UiWindow owner, BSize viewport, Assembly productAssembly)
+    private static readonly Lazy<BImageResource> Artwork = new(() =>
+    {
+        using Stream stream = typeof(PlateAbout).Assembly.GetManifestResourceStream("Broiler.Plate.About.png")
+            ?? throw new InvalidOperationException("The embedded About picture is missing.");
+        using var bytes = new MemoryStream();
+        stream.CopyTo(bytes);
+        return BImageResource.FromEncoded(bytes.ToArray(), "image/png");
+    });
+
+    public static void Show(UiWindow owner, BSize viewport, Assembly productAssembly, Action<Uri>? openUrl = null)
     {
         if (owner.IsDisposed || owner.IsClosed)
             return;
@@ -40,14 +33,41 @@ internal static class PlateAbout
         var dialog = new StandardAboutDialog();
         // Use Plate's assembly even when hosted by another application or a test runner.
         // Broiler.UI preserves the prerelease label and omits the SDK's commit hash.
-        dialog.PopulateFromAssemblies(productAssembly);
+        var components = new[] { productAssembly, typeof(PlateAbout).Assembly, typeof(StandardAboutDialog).Assembly };
+        dialog.PopulateFromAssemblies(productAssembly, components);
         dialog.ProductName = "Broiler Plate";
         dialog.Title = "About Broiler Plate";
+        if (OperatingSystem.IsBrowser())
+        {
+            dialog.CanClose = false;
+        }
+        dialog.Picture = Artwork.Value;
+        dialog.PreferredSize = new BSize(820, 420);
+        dialog.PictureAltText = "Broiler Plate";
+        dialog.ProductUrl = new Uri("https://broiler-platform.github.io/");
+        dialog.ProductUrlRequested += (_, url) =>
+        {
+            try
+            {
+                (openUrl ?? OpenDesktopUrl)(url);
+            }
+            catch (Exception error) when (error is Win32Exception or InvalidOperationException or NotSupportedException)
+            {
+                dialog.WebsiteButton.Text = "Unable to open website";
+            }
+        };
 
         double width = Math.Min(dialog.PreferredSize.Width, Math.Max(0, viewport.Width - 32));
         double height = Math.Min(dialog.PreferredSize.Height, Math.Max(0, viewport.Height - 32));
         _ = dialog.ShowModal(owner, new BRect(
             Math.Max(0, (viewport.Width - width) / 2),
             Math.Max(0, (viewport.Height - height) / 2), width, height));
+    }
+
+    private static void OpenDesktopUrl(Uri url)
+    {
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            throw new NotSupportedException("This host must supply website navigation.");
+        using Process? process = Process.Start(new ProcessStartInfo(url.AbsoluteUri) { UseShellExecute = true });
     }
 }

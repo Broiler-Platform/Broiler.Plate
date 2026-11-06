@@ -240,4 +240,15 @@ public sealed class PlateFileFormats
 
         return filters.ToArray();
     }
+
+    /// <summary>
+    /// Produces a comma-separated list of accepted extensions suitable for HTML file pickers.
+    /// </summary>
+    public string CreateAcceptExtensions()
+    {
+        string documents = DocumentFilterPattern;
+        string graphics = PlateImageFormats.AllFilterPattern;
+        string everything = documents.Length == 0 ? graphics : documents + ";" + graphics;
+        return everything.Replace("*", string.Empty).Replace(";", ",");
+    }
 }

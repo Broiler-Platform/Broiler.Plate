@@ -55,7 +55,8 @@ internal enum PlatePrintPermission
 // Broiler-Human:        PENDING
 internal sealed class PlatePicturePrintDocument : IBPagedDocument
 {
-    private readonly string _path;
+    private readonly string? _path;
+    private readonly BPixelBuffer? _pixels;
     private readonly BSize _pixelSize;
 
     // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=7609C6
@@ -65,6 +66,15 @@ internal sealed class PlatePicturePrintDocument : IBPagedDocument
         _path = path ?? throw new ArgumentNullException(nameof(path));
         _pixelSize = pixelSize;
         Title = Path.GetFileName(path);
+    }
+
+    // Broiler-AI:           Origin=AI; IP=Low; Security=Low; Resources=1; Fingerprint=TBF
+    // Broiler-Human:        PENDING
+    public PlatePicturePrintDocument(string title, BPixelBuffer pixels)
+    {
+        _pixels = pixels ?? throw new ArgumentNullException(nameof(pixels));
+        _pixelSize = new BSize(pixels.Width, pixels.Height);
+        Title = string.IsNullOrWhiteSpace(title) ? "Scan" : title;
     }
 
     public string Title { get; }
@@ -84,7 +94,15 @@ internal sealed class PlatePicturePrintDocument : IBPagedDocument
         ArgumentNullException.ThrowIfNull(setup);
         cancellationToken.ThrowIfCancellationRequested();
 
-        using BBitmap bitmap = BBitmap.Decode(File.ReadAllBytes(_path));
+        if (_pixels is not null)
+        {
+            var scanBuilder = new BPageBuilder(setup.PageSize);
+            BImageHandle scanImage = scanBuilder.AddImage(_pixels);
+            scanBuilder.Content.DrawImage(scanImage, new BRect(0, 0, _pixels.Width, _pixels.Height), Fit(new BSize(_pixels.Width, _pixels.Height), setup.ContentBox));
+            return new BPageCollection([scanBuilder.Build()]);
+        }
+
+        using BBitmap bitmap = BBitmap.Decode(File.ReadAllBytes(_path!));
         var builder = new BPageBuilder(setup.PageSize);
         BImageHandle image = builder.AddImage(bitmap.ToPixelBuffer(copy: false));
         builder.Content.DrawImage(image, new BRect(0, 0, bitmap.Width, bitmap.Height), Fit(new BSize(bitmap.Width, bitmap.Height), setup.ContentBox));

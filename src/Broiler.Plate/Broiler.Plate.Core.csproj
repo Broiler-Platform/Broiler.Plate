@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -11,7 +11,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\icon-256.png" LogicalName="Broiler.Plate.About.png" />
+    <EmbeddedResource Include="..\..\icon-128.png" LogicalName="Broiler.Plate.icon-128.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Broiler.Plate.Windows" />
+    <InternalsVisibleTo Include="Broiler.Plate.Linux" />
+    <InternalsVisibleTo Include="Broiler.Plate.WebAssembly" />
     <InternalsVisibleTo Include="Broiler.Plate.Windows.Tests" />
   </ItemGroup>
 
@@ -24,6 +31,7 @@
     <PackageReference Include="Broiler.Documents.Rtf" />
     <PackageReference Include="Broiler.Graphics" />
     <PackageReference Include="Broiler.Input.Keyboard" />
+    <PackageReference Include="Broiler.Input.Scanner" />
     <PackageReference Include="Broiler.UI.AboutDialog" />
     <PackageReference Include="Broiler.UI.AboutDialog.Standard" />
     <PackageReference Include="Broiler.UI.Dialog.Standard" />
@@ -32,8 +40,10 @@
     <PackageReference Include="Broiler.UI.Label.Standard" />
     <PackageReference Include="Broiler.UI.Menu.Standard" />
     <PackageReference Include="Broiler.UI.PrintDialog.Standard" />
+    <PackageReference Include="Broiler.UI.ScanDialog.Standard" />
     <PackageReference Include="Broiler.UI.RichEdit.Standard" />
     <PackageReference Include="Broiler.UI.Toolbar.Standard" />
+    <PackageReference Include="Broiler.UI.Tooltip.Standard" />
     <PackageReference Include="Broiler.UI.Window.Standard" />
   </ItemGroup>
 
