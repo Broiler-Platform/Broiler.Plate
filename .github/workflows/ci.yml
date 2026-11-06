@@ -26,15 +26,30 @@ jobs:
       - name: Check out
         uses: actions/checkout@v7
 
-      # The generator walks local project references; packages need no checkout.
       - name: Verify the generated solutions
         shell: pwsh
         run: ./scripts/update-solutions.ps1 -Verify
 
   build:
-    name: Windows head
-    runs-on: windows-latest
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows head
+            os: windows-latest
+            solution: Broiler.Windows.Plate.slnx
+          - name: Linux head
+            os: ubuntu-24.04
+            solution: Broiler.Linux.Plate.slnx
+
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -43,9 +58,8 @@ jobs:
         uses: ./.github/actions/setup-broiler
 
       - name: Build
-        run: dotnet build Broiler.Windows.Plate.slnx -c Release
+        run: dotnet build ${{ matrix.solution }} -c Release
 
-  # The tests exercise the Windows head's actual PDF composition and shared UI.
   test:
     name: Tests
     runs-on: windows-latest
@@ -60,12 +74,11 @@ jobs:
       - name: Test
         run: dotnet test Broiler.Plate.Tests.slnx -c Release
 
-  # Release-Windows pins win-x64 and is only declared by the project. Exercise
-  # NativeAOT here as well as in publish.yml so failures surface before release.
-  publish:
-    name: Publish win-x64 (NativeAOT)
-    runs-on: windows-latest
+  webassembly:
+    name: WebAssembly head
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
+
     steps:
       - name: Check out
         uses: actions/checkout@v7
@@ -73,22 +86,47 @@ jobs:
       - name: Set up
         uses: ./.github/actions/setup-broiler
 
-      # windows-latest includes the MSVC C++ linker required by NativeAOT.
-      - name: Publish
-        run: dotnet publish src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj -c Release-Windows -p:PublishAot=true -o ./artifacts/win-x64
+      - name: Install the wasm-tools workload
+        run: dotnet workload install wasm-tools
 
-      - name: Smoke-test the published binary
-        shell: pwsh
-        run: |
-          $exe = './artifacts/win-x64/Broiler.Plate.Windows.exe'
-          if (-not (Test-Path -LiteralPath $exe)) { throw "Published executable not found at $exe." }
-          $viewer = Start-Process -FilePath $exe -WindowStyle Hidden -PassThru
-          try {
-            Start-Sleep -Seconds 10
-            if ($viewer.HasExited) { throw "The viewer exited with code $($viewer.ExitCode) instead of staying up." }
-            Write-Host 'The published viewer started and stayed up.'
-          }
-          finally {
-            if (-not $viewer.HasExited) { Stop-Process -Id $viewer.Id -Force }
-            $viewer.Dispose()
-          }
+      - name: Build
+        run: dotnet build Broiler.WebAssembly.Plate.slnx -c Release
+
+      - name: Publish
+        run: dotnet publish src/Broiler.Plate.WebAssembly/Broiler.Plate.WebAssembly.csproj -c Release
+
+  publish:
+    name: Publish ${{ matrix.rid }} (NativeAOT)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: bash
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            project: src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj
+            configuration: Release-Windows
+          - os: ubuntu-24.04
+            rid: linux-x64
+            project: src/Broiler.Plate.Linux/Broiler.Plate.Linux.csproj
+            configuration: Release-Linux
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up
+        uses: ./.github/actions/setup-broiler
+
+      - name: Install the NativeAOT prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Publish
+        run: dotnet publish ${{ matrix.project }} -c ${{ matrix.configuration }} -p:PublishAot=true

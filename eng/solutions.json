@@ -13,6 +13,29 @@
       ]
     },
     {
+      "path": "Broiler.Linux.Plate.slnx",
+      "description": "Linux Plate viewer and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Plate.Linux/Broiler.Plate.Linux.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation)[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*WebAssembly[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    },
+    {
+      "path": "Broiler.WebAssembly.Plate.slnx",
+      "description": "WebAssembly Plate viewer and its transitive dependencies.",
+      "roots": [
+        "src/Broiler.Plate.WebAssembly/Broiler.Plate.WebAssembly.csproj"
+      ],
+      "forbiddenProjectPatterns": [
+        "(?i)(^|[./])[^/]*(Windows|Win32|MediaFoundation|Linux)[^/]*\\.csproj$",
+        "(?i)(^|[./])[^/]*Android[^/]*\\.csproj$"
+      ]
+    },
+    {
       "path": "Broiler.Plate.Tests.slnx",
       "description": "Plate test projects; component unit tests stay in component-owned solutions.",
       "roots": [

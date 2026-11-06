@@ -1,0 +1,7 @@
+{
+  "product": "plate",
+  "productName": "Plate",
+  "repository": "Broiler-Platform/Broiler.Plate",
+  "project": "src/Broiler.Plate.WebAssembly/Broiler.Plate.WebAssembly.csproj",
+  "versionProperty": "BroilerPlateVersion"
+}

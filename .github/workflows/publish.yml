@@ -1,31 +1,57 @@
 name: Publish
 
-# Dispatch-only. Every run builds the Windows Plate twice, stamps both builds with the next
-# preview version, attaches them to the run as artifacts, then drafts a GitHub pre-release
-# carrying them:
-#
-#   Broiler.Plate-<version>-win-x64-self-contained.zip       Broiler.Plate.Windows.exe
-#   Broiler.Plate-<version>-win-x64-framework-dependent.zip  Broiler.Plate.Windows.exe + its .dlls
-#
-# self-contained is NativeAOT, which is what makes the executable the whole application:
-# trimmed, no .NET runtime to install, nothing beside it. framework-dependent is the ordinary
-# IL build: a much smaller download that runs on an installed .NET 10 runtime.
-#
-# Nothing is pushed to a feed, and every package restores from nuget.org (NuGet.config). The
-# draft release (eng/release-draft.sh) stays private until someone publishes it.
-#
-# The version is BroilerPlateVersion (Directory.Build.props) raised past every earlier
-# run's plate-v* tag, and a successful run tags its commit, so preview numbers only ever
-# increase and never name two builds. See eng/resolve-preview-version.mjs.
+# One product version and release for all selected targets.
+# Platform implementation stays in reusable build jobs; only this workflow publishes.
 on:
   workflow_dispatch:
     inputs:
       version-suffix:
-        description: >-
-          Optional preview.N override (unused, and at least the next preview). Empty picks
-          the next preview automatically.
+        description: Optional preview.N override; blank increments the existing product release line.
         type: string
         default: ''
+      windows:
+        description: Publish Windows x64 (NativeAOT and framework-dependent).
+        type: boolean
+        default: true
+      linux:
+        description: Publish Linux x64 (NativeAOT and framework-dependent).
+        type: boolean
+        default: true
+      web:
+        description: Publish verified WebAssembly assets.
+        type: boolean
+        default: true
+      create_draft:
+        description: Keep the release private for review; false publishes the prerelease.
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      version-suffix:
+        description: Optional preview.N override; blank increments the existing product release line.
+        type: string
+        default: ''
+      windows:
+        description: Publish Windows x64 (NativeAOT and framework-dependent).
+        type: boolean
+        default: true
+      linux:
+        description: Publish Linux x64 (NativeAOT and framework-dependent).
+        type: boolean
+        default: true
+      web:
+        description: Publish verified WebAssembly assets.
+        type: boolean
+        default: true
+      create_draft:
+        description: Keep the release private for review; false publishes the prerelease.
+        type: boolean
+        default: true
+    outputs:
+      version:
+        value: ${{ jobs.version.outputs.version }}
+      tag:
+        value: ${{ jobs.version.outputs.tag }}
 
 permissions:
   contents: read
@@ -46,7 +72,15 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      matrix: ${{ steps.targets.outputs.matrix }}
     steps:
+      - name: Verify producer repository context
+        shell: bash
+        run: |
+          if [ "$GITHUB_REPOSITORY" != "Broiler-Platform/Broiler.Plate" ]; then
+            echo "::error::Dispatch Publish in the producer repository; a caller token/source context cannot publish this product."
+            exit 1
+          fi
       - name: Check out
         uses: actions/checkout@v7
 
@@ -61,6 +95,19 @@ jobs:
       - name: Test the version resolver
         run: node --test eng/resolve-preview-version.test.mjs
 
+      - name: Resolve selected targets
+        id: targets
+        env:
+          PUBLISH_WINDOWS: ${{ inputs.windows }}
+          PUBLISH_LINUX: ${{ inputs.linux }}
+          PUBLISH_WEB: ${{ inputs.web }}
+        run: node eng/publish-targets.mjs
+
+      - name: Test target selection and release packaging
+        run: |
+          node --test eng/publish-targets.test.mjs
+          python -m unittest discover -s eng -p test_release_packaging.py -v
+
       - name: Resolve version
         id: version
         env:
@@ -68,9 +115,10 @@ jobs:
         run: node eng/resolve-preview-version.mjs
 
   build:
-    name: win-x64 (${{ matrix.variant }})
+    name: ${{ matrix.rid }} (${{ matrix.variant }})
     needs: version
-    runs-on: windows-latest
+    if: inputs.windows || inputs.linux
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
 
     defaults:
@@ -79,20 +127,11 @@ jobs:
 
     strategy:
       fail-fast: true
-      matrix:
-        include:
-          # PublishAot implies self-contained and trimmed: one native binary. windows-latest
-          # carries the MSVC C++ linker NativeAOT shells out to.
-          - variant: self-contained
-            publish-args: -p:PublishAot=true
-          # The IL build beside its .dlls; the .NET 10 runtime comes from the machine.
-          - variant: framework-dependent
-            publish-args: --self-contained false
+      matrix: ${{ fromJSON(needs.version.outputs.matrix) }}
 
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      OUT: artifacts/publish/win-x64-${{ matrix.variant }}
-      EXECUTABLE: Broiler.Plate.Windows.exe
+      OUT: artifacts/publish/${{ matrix.rid }}-${{ matrix.variant }}
 
     steps:
       - name: Check out
@@ -101,73 +140,85 @@ jobs:
       - name: Set up
         uses: ./.github/actions/setup-broiler
 
-      # Release-Windows pins win-x64. BroilerPlateVersion flows into Version, so the About
-      # dialog and the file version match the artifact.
+      # ILCompiler shells out to a platform linker. windows-latest carries the MSVC C++
+      # tools; on Linux the toolchain is clang plus zlib headers.
+      - name: Install the NativeAOT prerequisites
+        if: runner.os == 'Linux' && matrix.variant == 'self-contained'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      # self-contained: PublishAot implies self-contained and trimmed - one native binary,
+      # no .NET runtime to install. framework-dependent: PublishAot is switched off and
+      # the output runs on an installed runtime.
+      # BroilerPlateVersion flows into Version, so the About dialog and the file version
+      # match the artifact.
       - name: Publish
         run: |
-          dotnet publish src/Broiler.Plate.Windows/Broiler.Plate.Windows.csproj \
-            -c Release-Windows \
-            ${{ matrix.publish-args }} \
+          if [ '${{ matrix.variant }}' = self-contained ]; then
+            mode=(-p:PublishAot=true)
+          else
+            mode=(--self-contained false -p:PublishAot=false)
+          fi
+          dotnet publish '${{ matrix.project }}' \
+            -c '${{ matrix.configuration }}' \
+            "${mode[@]}" \
             -p:BroilerPlateVersion="$VERSION" \
             -o "$OUT"
 
-      # Symbols and XML docs are dead weight in a release; drop them before checking what
-      # is left.
-      - name: Drop symbols and XML docs
-        run: |
-          find "$OUT" -type f -name '*.pdb' -delete
-          find "$OUT" -type f -name '*.xml' | while read -r xml; do
-            if [ -f "${xml%.xml}.dll" ]; then rm -f "$xml"; fi
-          done
-
-      # self-contained: the artifact is the executable alone; anything else would be a file
+      # The self-contained artifact is the executable alone. Symbols (.pdb, and Linux's
+      # detached .dbg) and XML docs are dead weight next to it; anything else would be a file
       # the application needs, so shipping without it would be broken - fail rather than
       # drop it.
       - name: Check that the executable is the whole application
         if: matrix.variant == 'self-contained'
         run: |
-          others=$(find "$OUT" -type f ! -name "$EXECUTABLE")
-          if [ ! -f "$OUT/$EXECUTABLE" ] || [ -n "$others" ]; then
-            echo "::error::Expected only $EXECUTABLE in the publish output."
+          others=$(find "$OUT" -type f ! -name '${{ matrix.executable }}' \
+            ! -name '*.pdb' ! -name '*.dbg' ! -name '*.xml')
+          if [ ! -f "$OUT/${{ matrix.executable }}" ] || [ -n "$others" ]; then
+            echo "::error::Expected only ${{ matrix.executable }} in the publish output."
             find "$OUT" -type f
             exit 1
           fi
 
-      # framework-dependent: the apphost, the application assembly and the runtimeconfig
-      # that names the framework must be there, and no runtime may have leaked in - that
-      # would be a self-contained build under the wrong name.
-      - name: Check that the build is framework-dependent
+      # The framework-dependent artifact is the whole publish folder: the executable, the
+      # application's assembly and runtimeconfig, and every managed dependency. It must not
+      # carry a runtime of its own - that would make it self-contained under the wrong name.
+      # Symbols and the XML docs that sit beside an assembly are dropped; everything else ships.
+      - name: Check the framework-dependent output
         if: matrix.variant == 'framework-dependent'
         run: |
-          for f in "$EXECUTABLE" Broiler.Plate.Windows.dll Broiler.Plate.Windows.runtimeconfig.json; do
-            [ -f "$OUT/$f" ] || { echo "::error::Missing $f in the publish output."; find "$OUT" -type f; exit 1; }
+          for f in '${{ matrix.executable }}' '${{ matrix.assembly }}.dll' '${{ matrix.assembly }}.runtimeconfig.json'; do
+            if [ ! -f "$OUT/$f" ]; then
+              echo "::error::Expected $f in the publish output."
+              find "$OUT" -type f
+              exit 1
+            fi
           done
-          grep -q '"Microsoft.NETCore.App"' "$OUT/Broiler.Plate.Windows.runtimeconfig.json" \
-            || { echo '::error::The runtimeconfig names no shared framework.'; exit 1; }
-          for f in coreclr.dll System.Private.CoreLib.dll; do
-            [ ! -f "$OUT/$f" ] || { echo "::error::$f is in a framework-dependent build."; exit 1; }
+          runtime=$(find "$OUT" -type f \( -iname 'coreclr.dll' -o -name 'libcoreclr.so' -o -iname 'hostfxr.dll' -o -name 'libhostfxr.so' \))
+          if [ -n "$runtime" ]; then
+            echo "::error::The framework-dependent output carries a .NET runtime: $runtime"
+            exit 1
+          fi
+          find "$OUT" -type f \( -name '*.pdb' -o -name '*.dbg' \) -delete
+          find "$OUT" -type f -name '*.xml' | while read -r doc; do
+            if [ -f "${doc%.xml}.dll" ]; then rm "$doc"; fi
           done
-
-      - name: Smoke-test the executable
-        shell: pwsh
-        run: |
-          $viewer = Start-Process -FilePath "$env:OUT/$env:EXECUTABLE" -WindowStyle Hidden -PassThru
-          try {
-            Start-Sleep -Seconds 10
-            if ($viewer.HasExited) { throw "The viewer exited with code $($viewer.ExitCode) instead of staying up." }
-            Write-Host 'The published viewer started and stayed up.'
-          }
-          finally {
-            if (-not $viewer.HasExited) { Stop-Process -Id $viewer.Id -Force }
-            $viewer.Dispose()
-          }
+          echo "$(find "$OUT" -type f | wc -l) files in the framework-dependent output."
 
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
-          name: broiler-plate-win-x64-${{ matrix.variant }}-${{ env.VERSION }}
-          path: ${{ env.OUT }}/
+          name: broiler-plate-${{ matrix.rid }}-${{ matrix.variant }}-${{ env.VERSION }}
+          path: ${{ matrix.variant == 'self-contained' && format('{0}/{1}', env.OUT, matrix.executable) || env.OUT }}
           if-no-files-found: error
+
+  web:
+    name: Publish reusable Plate WebAssembly artifact
+    needs: version
+    if: inputs.web
+    uses: ./.github/workflows/web-artifact.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      source_tag: ${{ needs.version.outputs.tag }}
 
   release-tests:
     name: Product release regression tests
@@ -180,50 +231,45 @@ jobs:
         run: dotnet test src/tests/Broiler.Plate.Windows.Tests/Broiler.Plate.Windows.Tests.csproj -c Release
 
   release:
-    name: Tag and draft release ${{ needs.version.outputs.tag }}
-    needs: [version, build, release-tests]
+    name: Create release ${{ needs.version.outputs.tag }}
+    needs: [version, build, web, release-tests]
+    if: >-
+      ${{ !cancelled() && needs.version.result == 'success' &&
+          needs.release-tests.result == 'success' &&
+          (!inputs.windows && !inputs.linux || needs.build.result == 'success') &&
+          (!inputs.web || needs.web.result == 'success') }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
       TAG: ${{ needs.version.outputs.tag }}
+      PUBLISH_WINDOWS: ${{ inputs.windows }}
+      PUBLISH_LINUX: ${{ inputs.linux }}
+      PUBLISH_WEB: ${{ inputs.web }}
+      CREATE_DRAFT: ${{ inputs.create_draft }}
 
     steps:
       - name: Check out
         uses: actions/checkout@v7
 
-      # Only after both builds succeeded: a failed run leaves its number free. The tag is
-      # pushed here rather than left to the release, because a draft release does not
-      # create its tag until it is published - and the next run counts tags.
       - name: Tag the commit
         run: |
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG"
 
-      # A pattern matching several artifacts extracts each into a directory of its name,
-      # which is the layout eng/release-draft.sh reads.
-      - name: Download the builds
+      - name: Download the build artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: broiler-plate-win-x64-*-${{ env.VERSION }}
+          pattern: broiler-plate-*
           path: artifacts
 
-      # A draft pre-release: nothing is public until someone reviews and publishes it.
-      - name: Draft the release
+      - name: Create the selected release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash eng/release-draft.sh "$VERSION" artifacts
 
       - name: Summary
         run: |
-          {
-            echo "### Broiler.Plate $VERSION"
-            echo
-            echo "Dependencies restored from nuget.org; commit tagged \`$TAG\`."
-            echo
-            echo "A draft pre-release **Broiler Plate $VERSION** was created with"
-            echo "\`Broiler.Plate-$VERSION-win-x64-self-contained.zip\` and"
-            echo "\`Broiler.Plate-$VERSION-win-x64-framework-dependent.zip\`."
-            echo "Review it under Releases and publish it there."
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Product release: $TAG (draft=$CREATE_DRAFT)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Windows=$PUBLISH_WINDOWS; Linux=$PUBLISH_LINUX; Web=$PUBLISH_WEB" >> "$GITHUB_STEP_SUMMARY"
